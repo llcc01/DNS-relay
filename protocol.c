@@ -37,20 +37,16 @@ void protocol_init(SOCKET* s)
     printf("bind() is OK!\n");
 }
 
-void protocol_send(const SOCKET* s, uint32_t to_addr, const dns_message_t* msg)
+void protocol_send(const SOCKET* s, SOCKADDR_IN *sock_in, const dns_message_t* msg)
 {
     // send the message to the client
     printf("protocol_send\n");
-    SOCKADDR_IN sock_in;
-    sock_in.sin_family = AF_INET;
-    sock_in.sin_port = htons(53);
-    sock_in.sin_addr.s_addr = to_addr;
 
     char* buffer = malloc(BUF_MAX_SIZE);
     size_t buffer_size;
     dns_message_to_buf(msg, buffer, &buffer_size);
 
-    if (sendto(*s, (char*)buffer, buffer_size, 0, (SOCKADDR*)&sock_in, sizeof(sock_in)) == SOCKET_ERROR) {
+    if (sendto(*s, (char*)buffer, buffer_size, 0, (SOCKADDR*)sock_in, sizeof(*sock_in)) == SOCKET_ERROR) {
         free(buffer);
         printf("sendto() failed. %d\n", WSAGetLastError());
         closesocket(*s);
@@ -62,19 +58,15 @@ void protocol_send(const SOCKET* s, uint32_t to_addr, const dns_message_t* msg)
     printf("sendto() is OK!\n");
 }
 
-void protocol_recv(const SOCKET* s, uint32_t* from_addr, dns_message_t* msg)
+void protocol_recv(const SOCKET* s, SOCKADDR_IN* sock_in, dns_message_t* msg)
 {
     // receive the message from the client
     printf("protocol_recv\n");
-    SOCKADDR_IN sock_in;
-    sock_in.sin_family = AF_INET;
-    sock_in.sin_port = htons(53);
-    sock_in.sin_addr.s_addr = INADDR_ANY;
 
-    int sock_in_size = sizeof(sock_in);
+    int sock_in_size = sizeof(*sock_in);
 
     char* buffer = malloc(BUF_MAX_SIZE);
-    int res = recvfrom(*s, (char*)buffer, BUF_MAX_SIZE, 0, (SOCKADDR*)&sock_in, &sock_in_size);
+    int res = recvfrom(*s, (char*)buffer, BUF_MAX_SIZE, 0, (SOCKADDR*)sock_in, &sock_in_size);
     if (res == SOCKET_ERROR) {
         free(buffer);
         printf("recvfrom() failed. %d\n", WSAGetLastError());
@@ -82,10 +74,8 @@ void protocol_recv(const SOCKET* s, uint32_t* from_addr, dns_message_t* msg)
         WSACleanup();
         exit(1);
     }
-
-    *from_addr = sock_in.sin_addr.s_addr;
-
-    printf("recvfrom() recv %d bytes\n", res);
+    
+    printf("recvfrom() recv %d bytes \n", res);
     dns_message_from_buf(buffer, res, msg);
 }
 

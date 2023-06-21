@@ -38,8 +38,8 @@ typedef struct {
 #define NAME_MAX_SIZE 65
 
 void protocol_init(SOCKET* s);
-void protocol_send(const SOCKET* s, uint32_t to_addr, const dns_message_t* msg);
-void protocol_recv(const SOCKET* s, uint32_t* from_addr, dns_message_t* msg);
+void protocol_send(const SOCKET* s, SOCKADDR_IN* sock_in, const dns_message_t* msg);
+void protocol_recv(const SOCKET* s, SOCKADDR_IN* sock_in, dns_message_t* msg);
 
 void dns_header_set_flags(dns_header_t* header, uint16_t flags, uint8_t opcode, uint8_t rcode);
 void dns_header_to_buf(const dns_header_t* header, uint8_t* buf, size_t* len);

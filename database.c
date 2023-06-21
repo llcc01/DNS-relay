@@ -45,14 +45,18 @@ void database_load(const char* filename)
     char name[256];
     uint8_t ip_addr[4];
     dns_record_t record;
-    while (fscanf(fp, "%d.%d.%d.%d %s", &ip_addr[0], &ip_addr[1], &ip_addr[2], &ip_addr[3], name) != EOF) {
-        record.name = name;
+    while (fscanf(fp, "%d.%d.%d.%d %s", &ip_addr[0], &ip_addr[1], &ip_addr[2], &ip_addr[3], name) != EOF)
+    {
+        char qname[NAME_MAX_SIZE];
+        name_to_qname(name, qname);
+        record.name = qname;
         record.type = TYPE_A;
         record.class = CLASS_IN;
-        record.ttl = 0;
+        record.ttl = 120;
         record.rdlength = 4;
         record.rdata = ip_addr;
         database_add(&record);
+        dns_record_print(&record);
     }
 }
 
@@ -60,8 +64,10 @@ void database_lookup(const char* name, dns_record_t* record)
 {
     // lookup the record in the database
     printf("database_lookup\n");
-    for (int i = 0; i < database.size; i++) {
-        if (strcmp(database.records[i].name, name) == 0) {
+    for (int i = 0; i < database.size; i++)
+    {
+        if (strcmp(database.records[i].name, name) == 0)
+        {
             record->name = database.records[i].name;
             record->type = database.records[i].type;
             record->class = database.records[i].class;
