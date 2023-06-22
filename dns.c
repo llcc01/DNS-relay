@@ -150,15 +150,17 @@ void dns_handle_q(dns_handle_arg_t* arg)
         //     break;
         // }
 
-        dns_record_t record;
-        database_lookup(question.name, &record);
-        if (record.type == 0)
+        msg_send.header.ancount = 1;
+        msg_send.answers = malloc(sizeof(dns_record_t));
+
+        database_lookup(question.name, msg_send.answers);
+        if (msg_send.answers[0].type == 0)
         {
             msg_send.header.ancount = 0;
             break;
         }
 
-        if (*(record.rdata) == 0)
+        if (*(msg_send.answers[0].rdata) == 0)
         {
             printf("banned\n");
             msg_send.header.ancount = 0;
@@ -167,11 +169,7 @@ void dns_handle_q(dns_handle_arg_t* arg)
             break;
         }
 
-        dns_record_print(&record);
-
-        msg_send.header.ancount = 1;
-        msg_send.answers = malloc(sizeof(dns_record_t));
-        msg_send.answers[0] = record;
+        dns_record_print(msg_send.answers);
 
     }
 
@@ -183,12 +181,24 @@ void dns_handle_q(dns_handle_arg_t* arg)
         msg.header.id = dns_transaction_id_get();
         dns_transaction_id_set_state(msg.header.id, 0);
         dns_question_upstream(s, &msg);
-        while (dns_transaction_id_get_state(msg.header.id) == 0)
+
+        size_t count = 0;
+        while (dns_transaction_id_get_state(msg.header.id) == 0 && count < DNS_UPSTREAM_TIMEOUT)
         {
             Sleep(1);
+            count++;
         }
-        dns_transaction_id_put(msg.header.id);
-        msg_send = dns_msg_cache[msg.header.id];
+        if (count < DNS_UPSTREAM_TIMEOUT)
+        {
+            msg_send = dns_msg_cache[msg.header.id];
+            dns_transaction_id_put(msg.header.id);
+        }
+        else
+        {
+            dns_header_set_flags(&(msg_send.header), msg_send.header.flags, 0, RCODE_SERVER_FAILURE);
+            dns_transaction_id_put(msg.header.id);
+        }
+
         msg_send.header.id = ori_id;
     }
 

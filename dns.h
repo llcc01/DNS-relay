@@ -10,6 +10,7 @@ typedef struct {
 } dns_handle_arg_t;
 
 #define DNS_UPSTREAM_SERVER "10.3.9.44"
+#define DNS_UPSTREAM_TIMEOUT 5000
 
 void dns_handle_q(dns_handle_arg_t *arg);
 void dns_handle_r(dns_handle_arg_t *arg);
