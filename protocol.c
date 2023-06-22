@@ -4,7 +4,7 @@
 
 WSADATA wsaData;
 
-void protocol_init(SOCKET* s)
+void protocol_init(SOCKET* s, uint16_t port)
 {
     // initialize the protocol
     printf("protocol_init\n");
@@ -24,7 +24,7 @@ void protocol_init(SOCKET* s)
 
     SOCKADDR_IN sock_in;
     sock_in.sin_family = AF_INET;
-    sock_in.sin_port = htons(53);
+    sock_in.sin_port = htons(port);
     sock_in.sin_addr.s_addr = INADDR_ANY;
 
     if (bind(*s, (SOCKADDR*)&sock_in, sizeof(sock_in)) == SOCKET_ERROR) {
@@ -37,7 +37,7 @@ void protocol_init(SOCKET* s)
     printf("bind() is OK!\n");
 }
 
-void protocol_send(const SOCKET* s, SOCKADDR_IN *sock_in, const dns_message_t* msg)
+void protocol_send(const SOCKET* s, const SOCKADDR_IN* sock_in, const dns_message_t* msg)
 {
     // send the message to the client
     printf("protocol_send\n");
@@ -74,8 +74,14 @@ void protocol_recv(const SOCKET* s, SOCKADDR_IN* sock_in, dns_message_t* msg)
         WSACleanup();
         exit(1);
     }
-    
+
     printf("recvfrom() recv %d bytes \n", res);
+
+    for (size_t i = 0; i < res; i++) {
+        printf("%02x ", (uint8_t)buffer[i]);
+    }
+    printf("\n");
+
     dns_message_from_buf(buffer, res, msg);
 }
 
@@ -159,6 +165,7 @@ void dns_message_to_buf(const dns_message_t* msg, uint8_t* buf, size_t* len)
 
     for (size_t i = 0; i < msg->header.nscount; i++) {
         size_t record_len;
+        dns_record_print(&msg->authorities[i]);
         dns_record_to_buf(&msg->authorities[i], buf + l, &record_len);
         l += record_len;
     }
@@ -178,10 +185,42 @@ void dns_message_from_buf(const uint8_t* buf, size_t buf_len, dns_message_t* msg
     printf("dns_message_from_buf\n");
     dns_header_from_buf(buf, buf_len, &msg->header);
 
-    msg->questions = malloc(msg->header.qdcount * sizeof(dns_question_t));
-    msg->answers = malloc(msg->header.ancount * sizeof(dns_record_t));
-    msg->authorities = malloc(msg->header.nscount * sizeof(dns_record_t));
-    msg->additionals = malloc(msg->header.arcount * sizeof(dns_record_t));
+    if (msg->header.qdcount > 0)
+    {
+        msg->questions = malloc(msg->header.qdcount * sizeof(dns_question_t));
+    }
+    else
+    {
+        msg->questions = NULL;
+    }
+
+    if (msg->header.ancount > 0)
+    {
+        msg->answers = malloc(msg->header.ancount * sizeof(dns_record_t));
+    }
+    else
+    {
+        msg->answers = NULL;
+    }
+
+    if (msg->header.nscount > 0)
+    {
+        msg->authorities = malloc(msg->header.nscount * sizeof(dns_record_t));
+    }
+    else
+    {
+        msg->authorities = NULL;
+    }
+
+    if (msg->header.arcount > 0)
+    {
+        msg->additionals = malloc(msg->header.arcount * sizeof(dns_record_t));
+    }
+    else
+    {
+        msg->additionals = NULL;
+    }
+
 
     size_t offset = sizeof(dns_header_t);
     for (size_t i = 0; i < msg->header.qdcount; i++) {

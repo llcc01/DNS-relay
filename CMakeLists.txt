@@ -8,6 +8,7 @@ add_executable(DNS-relay
     main.c
     protocol.c
     database.c
+    dns.c
 )
 
 add_compile_options(-Wall -Wextra -Werror -Wno-unused-parameter)
