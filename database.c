@@ -4,14 +4,32 @@
 #include <string.h>
 
 #include "protocol.h"
+#include "main.h"
 
 database_t database;
+
+dns_record_t local_name_rec;
 
 void database_init()
 {
     printf("database_init\n");
     database.records = NULL;
     database.size = 0;
+
+    char local_name[NAME_MAX_SIZE];
+    name_to_qname(LOCAL_NAME, local_name);
+    local_name_rec.name = malloc(strlen(local_name) + 1);
+    strcpy(local_name_rec.name, local_name);
+
+    local_name_rec.type = TYPE_PTR;
+    local_name_rec.class = CLASS_IN;
+    local_name_rec.ttl = 120;
+
+    char local_domain[NAME_MAX_SIZE];
+    name_to_qname(LOCAL_DOMAIN, local_domain);
+    local_name_rec.rdlength = strlen(local_domain) + 1;
+    local_name_rec.rdata = malloc(strlen(local_domain) + 1);
+    strcpy(local_name_rec.rdata, local_domain);
 }
 
 void database_add(const dns_record_t* record)
@@ -39,8 +57,7 @@ void database_load(const char* filename)
     printf("database_load\n");
     FILE* fp = fopen(filename, "r");
     if (fp == NULL) {
-        printf("Error: cannot open file %s\n", filename);
-        exit(1);
+        PANIC("Error: cannot open file %s", filename);
     }
     char name[256];
     uint8_t ip_addr[4];
@@ -56,7 +73,7 @@ void database_load(const char* filename)
         record.rdlength = 4;
         record.rdata = ip_addr;
         database_add(&record);
-        dns_record_print(&record);
+        // dns_record_print(&record);
     }
 }
 
@@ -88,6 +105,7 @@ void database_lookup(const char* name, dns_record_t* record)
 void dns_record_print(const dns_record_t* record)
 {
     // print the record
+    printf("----------------\n");
     printf("dns_record_print\n");
     char name[NAME_MAX_SIZE];
     qname_to_name(record->name, name);
@@ -138,12 +156,13 @@ void dns_record_print(const dns_record_t* record)
         }
         printf("\n");
     }
+    printf("----------------\n");
 }
 
 void dns_record_to_buf(const dns_record_t* record, uint8_t* buf, size_t* len)
 {
     // convert the record to the buffer
-    printf("dns_record_to_buf\n");
+    // printf("dns_record_to_buf\n");
     int offset = 0;
     int name_len = strlen(record->name);
     memcpy(buf + offset, record->name, name_len);
@@ -167,25 +186,24 @@ void dns_record_to_buf(const dns_record_t* record, uint8_t* buf, size_t* len)
 void dns_record_from_buf(const uint8_t* buf, size_t buf_len, size_t* len, size_t offset, dns_record_t* record)
 {
     // convert the buffer to the record
-    printf("dns_record_from_buf\n");
+    // printf("dns_record_from_buf\n");
     if (offset >= buf_len)
     {
-        printf("Error: buffer is too short\n");
-        exit(1);
+        PANIC("Error: buffer is too short");
     }
     size_t ori_offset = offset;
     size_t compress_name_len = 0;
     char name[NAME_MAX_SIZE];
 
     decompress_name(buf, buf_len, offset, &compress_name_len, name);
-    record->name = malloc(strlen(name) + 1);
-    strcpy(record->name, name);
+    size_t name_len = strlen(name);
+    record->name = malloc(name_len + 1);
+    memcpy(record->name, name, name_len + 1);
     offset += compress_name_len;
 
     if (offset + 10 >= buf_len)
     {
-        printf("Error: buffer is too short\n");
-        exit(1);
+        PANIC("Error: buffer is too short");
     }
     record->type = (uint16_t)buf[offset++] << 8;
     record->type |= buf[offset++];
@@ -199,21 +217,31 @@ void dns_record_from_buf(const uint8_t* buf, size_t buf_len, size_t* len, size_t
     record->rdlength |= buf[offset++];
     if (offset + record->rdlength > buf_len)
     {
-        printf("Error: buffer is too short\n");
-        exit(1);
+        PANIC("Error: buffer is too short");
     }
-    decompress_name(buf, buf_len, offset, &compress_name_len, name);
-    size_t rd_real_len = strlen(name) + 1;
-    record->rdata = malloc(rd_real_len);
-    memcpy(record->rdata, name, rd_real_len);
-    offset += record->rdlength;
+    if (record->type == TYPE_CNAME)
+    {
+        decompress_name(buf, buf_len, offset, &compress_name_len, name);
+        size_t rd_real_len = strlen(name) + 1;
+        record->rdata = malloc(rd_real_len);
+        memcpy(record->rdata, name, rd_real_len);
+
+        offset += compress_name_len;
+        record->rdlength = rd_real_len;
+    }
+    else
+    {
+        record->rdata = malloc(record->rdlength);
+        memcpy(record->rdata, buf + offset, record->rdlength);
+        offset += record->rdlength;
+    }
     *len = offset - ori_offset;
 }
 
 void dns_record_free(dns_record_t* record)
 {
     // free the record
-    printf("dns_record_free\n");
+    // printf("dns_record_free\n");
     free(record->name);
     free(record->rdata);
 }

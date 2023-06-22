@@ -77,23 +77,96 @@ void dns_handle_q(dns_handle_arg_t* arg)
 
     dns_message_t msg_send = msg;
     msg_send.header.flags |= FLAG_QR;
+
+    uint8_t banned = 0;
+
+    // 当有一个本地查询失败时，就不再进行本地查询
     for (int i = 0; i < msg_send.header.qdcount; i++)
     {
         dns_question_t question = msg_send.questions[i];
-        if (question.type != TYPE_A || question.class != CLASS_IN)
+
+        char name[NAME_MAX_SIZE];
+        qname_to_name(question.name, name);
+        printf("question: ");
+        if (question.type == TYPE_A)
         {
-            continue;
+            printf("A ");
+        }
+        else if (question.type == TYPE_NS)
+        {
+            printf("NS ");
+        }
+        else if (question.type == TYPE_PTR)
+        {
+            printf("PTR ");
+        }
+        else if (question.type == TYPE_CNAME)
+        {
+            printf("CNAME ");
+        }
+        else if (question.type == TYPE_SOA)
+        {
+            printf("SOA ");
+        }
+        else if (question.type == TYPE_MX)
+        {
+            printf("MX ");
+        }
+        else if (question.type == TYPE_TXT)
+        {
+            printf("TXT ");
+        }
+        else if (question.type == TYPE_AAAA)
+        {
+            printf("AAAA ");
+        }
+        else if (question.type == TYPE_SRV)
+        {
+            printf("SRV ");
+        }
+        else if (question.type == TYPE_ANY)
+        {
+            printf("ANY ");
         }
 
-        char name[256];
-        qname_to_name(question.name, name);
-        printf("question: %s\n", name);
+        printf("%s\n", name);
+
+        if (question.type == TYPE_PTR && question.class == CLASS_IN)
+        {
+            // printf("question PTR: %s\n", name);
+            if (strcmp(name, LOCAL_NAME) != 0)
+            {
+                continue;
+            }
+            msg_send.header.ancount = 1;
+            msg_send.answers = malloc(sizeof(dns_record_t));
+            msg_send.answers[0] = local_name_rec;
+            break;
+        }
+
+        // if (question.type != TYPE_A || question.class != CLASS_IN)
+        // {
+        //     msg_send.header.ancount = 0;
+        //     break;
+        // }
+
         dns_record_t record;
         database_lookup(question.name, &record);
-        if (record.type == 0 || *(record.rdata) == 0)
+        if (record.type == 0)
         {
-            continue;
+            msg_send.header.ancount = 0;
+            break;
         }
+
+        if (*(record.rdata) == 0)
+        {
+            printf("banned\n");
+            msg_send.header.ancount = 0;
+            banned = 1;
+            dns_header_set_flags(&(msg_send.header), msg_send.header.flags, 0, RCODE_NAME_ERROR);
+            break;
+        }
+
         dns_record_print(&record);
 
         msg_send.header.ancount = 1;
@@ -102,25 +175,33 @@ void dns_handle_q(dns_handle_arg_t* arg)
 
     }
 
-
-    if (msg_send.header.ancount == 0)
+    if (msg_send.header.ancount == 0 && banned == 0)
     {
-        printf("not found\n");
-        dns_header_set_flags(&msg_send.header, msg_send.header.flags, 0, 0x3);
+        printf("not found in database\n");
 
-        // dns_transaction_id_set_state(msg_send.header.id, 0);
-        // msg.header.id = dns_transaction_id_get();
-        // dns_question_upstream(s, &msg);
-        // while (dns_transaction_id_get_state(msg.header.id) == 0)
-        // {
-        //     Sleep(1);
-        // }
-        // dns_transaction_id_put(msg.header.id);
-        // msg_send = dns_msg_cache[msg.header.id];
+        uint16_t ori_id = msg.header.id;
+        msg.header.id = dns_transaction_id_get();
+        dns_transaction_id_set_state(msg.header.id, 0);
+        dns_question_upstream(s, &msg);
+        while (dns_transaction_id_get_state(msg.header.id) == 0)
+        {
+            Sleep(1);
+        }
+        dns_transaction_id_put(msg.header.id);
+        msg_send = dns_msg_cache[msg.header.id];
+        msg_send.header.id = ori_id;
     }
 
     protocol_send(s, &sock_in, &msg_send);
 
+    if (msg_send.header.qdcount > 0)
+    {
+        for (int i = 0; i < msg_send.header.qdcount; i++)
+        {
+            dns_question_free(&(msg_send.questions[i]));
+        }
+        free(msg_send.questions);
+    }
     if (msg_send.header.ancount > 0)
     {
         free(msg_send.answers);
@@ -149,7 +230,7 @@ void dns_handle_r(dns_handle_arg_t* arg)
         return;
     }
 
-    printf("dns_handle_r\n");
+    // printf("dns_handle_r\n");
 
     dns_msg_cache[msg.header.id] = msg;
     dns_transaction_id_set_state(msg.header.id, 1);

@@ -8,11 +8,18 @@
 #define TYPE_A 1
 #define TYPE_NS 2
 #define TYPE_CNAME 5
+#define TYPE_SOA 6
 #define TYPE_PTR 12
 #define TYPE_MX 15
+#define TYPE_TXT 16
 #define TYPE_AAAA 28
+#define TYPE_SRV 33
+#define TYPE_ANY 255
 
 #define CLASS_IN 1
+
+#define LOCAL_NAME "1.0.0.127.in-addr.arpa."
+#define LOCAL_DOMAIN "dns-relay.lc."
 
 typedef struct {
     char* name;
@@ -28,6 +35,7 @@ typedef struct {
     int size;
 } database_t;
 
+extern dns_record_t local_name_rec;
 
 void database_init(void);
 void database_load(const char* filename);

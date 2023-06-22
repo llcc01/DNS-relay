@@ -2,6 +2,8 @@
 
 #include <stdio.h>
 
+#include "main.h"
+
 WSADATA wsaData;
 
 void protocol_init(SOCKET* s, uint16_t port)
@@ -10,8 +12,7 @@ void protocol_init(SOCKET* s, uint16_t port)
     printf("protocol_init\n");
     int iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
     if (iResult != NO_ERROR) {
-        printf("Error at WSAStartup()\n");
-        exit(1);
+        PANIC("Error at WSAStartup()");
     }
 
     // UDP
@@ -19,7 +20,7 @@ void protocol_init(SOCKET* s, uint16_t port)
     if (*s == INVALID_SOCKET) {
         printf("Error at socket(): %ld\n", WSAGetLastError());
         WSACleanup();
-        exit(1);
+        PANIC("Error at socket()");
     }
 
     SOCKADDR_IN sock_in;
@@ -31,7 +32,7 @@ void protocol_init(SOCKET* s, uint16_t port)
         printf("bind() failed.\n");
         closesocket(*s);
         WSACleanup();
-        exit(1);
+        PANIC("Error at bind()");
     }
 
     printf("bind() is OK!\n");
@@ -40,7 +41,7 @@ void protocol_init(SOCKET* s, uint16_t port)
 void protocol_send(const SOCKET* s, const SOCKADDR_IN* sock_in, const dns_message_t* msg)
 {
     // send the message to the client
-    printf("protocol_send\n");
+    // printf("protocol_send\n");
 
     char* buffer = malloc(BUF_MAX_SIZE);
     size_t buffer_size;
@@ -51,17 +52,17 @@ void protocol_send(const SOCKET* s, const SOCKADDR_IN* sock_in, const dns_messag
         printf("sendto() failed. %d\n", WSAGetLastError());
         closesocket(*s);
         WSACleanup();
-        exit(1);
+        PANIC("Error at sendto()");
     }
 
     free(buffer);
-    printf("sendto() is OK!\n");
+    // printf("sendto() is OK!\n");
 }
 
 void protocol_recv(const SOCKET* s, SOCKADDR_IN* sock_in, dns_message_t* msg)
 {
     // receive the message from the client
-    printf("protocol_recv\n");
+    // printf("protocol_recv\n");
 
     int sock_in_size = sizeof(*sock_in);
 
@@ -72,23 +73,26 @@ void protocol_recv(const SOCKET* s, SOCKADDR_IN* sock_in, dns_message_t* msg)
         printf("recvfrom() failed. %d\n", WSAGetLastError());
         closesocket(*s);
         WSACleanup();
-        exit(1);
+        PANIC("Error at recvfrom()");
     }
+    else
+    {
+        // printf("recvfrom() recv %d bytes \n", res);
 
-    printf("recvfrom() recv %d bytes \n", res);
+    // for (size_t i = 0; i < res; i++) {
+    //     printf("%02x ", (uint8_t)buffer[i]);
+    // }
+    // printf("\n");
 
-    for (size_t i = 0; i < res; i++) {
-        printf("%02x ", (uint8_t)buffer[i]);
+        dns_message_from_buf(buffer, res, msg);
+        free(buffer);
     }
-    printf("\n");
-
-    dns_message_from_buf(buffer, res, msg);
 }
 
 void dns_header_set_flags(dns_header_t* header, uint16_t flags, uint8_t opcode, uint8_t rcode)
 {
     // set the flags of the header
-    printf("dns_header_set_flags\n");
+    // printf("dns_header_set_flags\n");
     header->flags = flags;
     header->flags &= ~(0xF << 11);
     header->flags &= ~(0xF << 0);
@@ -100,7 +104,7 @@ void dns_header_set_flags(dns_header_t* header, uint16_t flags, uint8_t opcode, 
 void dns_header_to_buf(const dns_header_t* header, uint8_t* buf, size_t* len)
 {
     // convert the header to a buffer
-    printf("dns_header_to_buf\n");
+    // printf("dns_header_to_buf\n");
     buf[0] = header->id >> 8;
     buf[1] = header->id & 0xFF;
     buf[2] = header->flags >> 8;
@@ -119,10 +123,9 @@ void dns_header_to_buf(const dns_header_t* header, uint8_t* buf, size_t* len)
 void dns_header_from_buf(const uint8_t* buf, size_t buf_len, dns_header_t* header)
 {
     // convert the buffer to the header
-    printf("dns_header_from_buf\n");
+    // printf("dns_header_from_buf\n");
     if (buf_len < 12) {
-        printf("Error: buffer is too short\n");
-        exit(1);
+        PANIC("Error: buffer is too short");
     }
     header->id = buf[0] << 8;
     header->id |= buf[1];
@@ -148,42 +151,60 @@ void dns_header_from_buf(const uint8_t* buf, size_t buf_len, dns_header_t* heade
 void dns_message_to_buf(const dns_message_t* msg, uint8_t* buf, size_t* len)
 {
     // convert the message to a buffer
-    printf("dns_message_to_buf\n");
-    size_t l = 0;
-    dns_header_to_buf(&msg->header, buf, &l);
+    // printf("dns_message_to_buf\n");
+    size_t offset = 0;
+    dns_header_to_buf(&msg->header, buf, &offset);
     for (size_t i = 0; i < msg->header.qdcount; i++) {
         size_t question_len;
-        dns_question_to_buf(&msg->questions[i], buf + l, &question_len);
-        l += question_len;
+        dns_question_to_buf(&msg->questions[i], buf + offset, &question_len);
+        offset += question_len;
     }
 
     for (size_t i = 0; i < msg->header.ancount; i++) {
         size_t record_len;
-        dns_record_to_buf(&msg->answers[i], buf + l, &record_len);
-        l += record_len;
+        // dns_record_print(&msg->answers[i]);
+        dns_record_to_buf(&msg->answers[i], buf + offset, &record_len);
+        offset += record_len;
     }
 
     for (size_t i = 0; i < msg->header.nscount; i++) {
         size_t record_len;
-        dns_record_print(&msg->authorities[i]);
-        dns_record_to_buf(&msg->authorities[i], buf + l, &record_len);
-        l += record_len;
+        // dns_record_print(&msg->authorities[i]);
+        dns_record_to_buf(&msg->authorities[i], buf + offset, &record_len);
+        offset += record_len;
     }
 
     for (size_t i = 0; i < msg->header.arcount; i++) {
         size_t record_len;
-        dns_record_to_buf(&msg->additionals[i], buf + l, &record_len);
-        l += record_len;
+        dns_record_to_buf(&msg->additionals[i], buf + offset, &record_len);
+        offset += record_len;
     }
 
-    *len = l;
+    *len = offset;
 }
 
 void dns_message_from_buf(const uint8_t* buf, size_t buf_len, dns_message_t* msg)
 {
     // convert the buffer to the message
-    printf("dns_message_from_buf\n");
+    // printf("dns_message_from_buf\n");
     dns_header_from_buf(buf, buf_len, &msg->header);
+
+    // if (msg->header.qdcount ==1 && msg->header.ancount == 0 && msg->header.nscount == 1 && msg->header.arcount == 1)
+    // {
+    //     for (size_t i = 0; i < 10; i++)
+    //     {
+    //         printf("-- ");
+    //     }
+    //     for (size_t i = 0; i < buf_len; i++)
+    //     {
+    //         printf("%02x ", buf[i]);
+    //         if (i % 16 == 5)
+    //         {
+    //             printf("\n");
+    //         }
+    //     }
+    //     printf("\n");
+    // }
 
     if (msg->header.qdcount > 0)
     {
@@ -223,36 +244,48 @@ void dns_message_from_buf(const uint8_t* buf, size_t buf_len, dns_message_t* msg
 
 
     size_t offset = sizeof(dns_header_t);
-    for (size_t i = 0; i < msg->header.qdcount; i++) {
-        if (offset >= buf_len) {
-            break;
+    for (size_t i = 0; i < msg->header.qdcount; i++)
+    {
+        // printf("offset: %d, buf_len: %d\n", offset, buf_len);
+        if (offset >= buf_len)
+        {
+            PANIC("Error: buffer is too short");
         }
         size_t question_len;
         dns_question_from_buf(buf, buf_len, &question_len, offset, &msg->questions[i]);
         offset += question_len;
     }
 
-    for (size_t i = 0; i < msg->header.ancount; i++) {
-        if (offset >= buf_len) {
-            break;
+    for (size_t i = 0; i < msg->header.ancount; i++)
+    {
+        // printf("offset: %d, buf_len: %d\n", offset, buf_len);
+        if (offset >= buf_len)
+        {
+            PANIC("Error: buffer is too short");
         }
         size_t record_len;
         dns_record_from_buf(buf, buf_len, &record_len, offset, &msg->answers[i]);
         offset += record_len;
     }
 
-    for (size_t i = 0; i < msg->header.nscount; i++) {
-        if (offset >= buf_len) {
-            break;
+    for (size_t i = 0; i < msg->header.nscount; i++)
+    {
+        // printf("offset: %d, buf_len: %d\n", offset, buf_len);
+        if (offset >= buf_len)
+        {
+            PANIC("Error: buffer is too short");
         }
         size_t record_len;
         dns_record_from_buf(buf, buf_len, &record_len, offset, &msg->authorities[i]);
         offset += record_len;
     }
 
-    for (size_t i = 0; i < msg->header.arcount; i++) {
-        if (offset >= buf_len) {
-            break;
+    for (size_t i = 0; i < msg->header.arcount; i++)
+    {
+        // printf("offset: %d, buf_len: %d\n", offset, buf_len);
+        if (offset >= buf_len)
+        {
+            PANIC("Error: buffer is too short");
         }
         size_t record_len;
         dns_record_from_buf(buf, buf_len, &record_len, offset, &msg->additionals[i]);
@@ -260,15 +293,14 @@ void dns_message_from_buf(const uint8_t* buf, size_t buf_len, dns_message_t* msg
     }
 
     if (offset > buf_len) {
-        printf("Error: buffer is too short\n");
-        exit(1);
+        PANIC("Error: buffer is too short");
     }
 }
 
 void dns_message_free(dns_message_t* msg)
 {
     // free the message
-    printf("dns_message_free\n");
+    // printf("dns_message_free\n");
     for (size_t i = 0; i < msg->header.qdcount; i++) {
         dns_question_free(&msg->questions[i]);
     }
@@ -293,7 +325,7 @@ void dns_message_free(dns_message_t* msg)
 void dns_question_to_buf(const dns_question_t* question, uint8_t* buf, size_t* len)
 {
     // convert the question to a buffer
-    printf("dns_question_to_buf\n");
+    // printf("dns_question_to_buf\n");
     size_t l = strlen(question->name) + 1;
     memcpy(buf, question->name, l);
     buf[l++] = question->type >> 8;
@@ -306,11 +338,10 @@ void dns_question_to_buf(const dns_question_t* question, uint8_t* buf, size_t* l
 void dns_question_from_buf(const uint8_t* buf, size_t buf_len, size_t* len, size_t offset, dns_question_t* question)
 {
     // convert the buffer to the question
-    printf("dns_question_from_buf\n");
+    // printf("dns_question_from_buf\n");
     size_t ori_offset = offset;
     if (offset >= buf_len) {
-        printf("Error: buffer is too short\n");
-        exit(1);
+        PANIC("Error: buffer is too short");
     }
 
     size_t compress_name_len = 0;
@@ -331,7 +362,7 @@ void dns_question_from_buf(const uint8_t* buf, size_t buf_len, size_t* len, size
 void dns_question_free(dns_question_t* question)
 {
     // free the question
-    printf("dns_question_free\n");
+    // printf("dns_question_free\n");
     free(question->name);
 }
 
@@ -374,11 +405,10 @@ void qname_to_name(const char* qname, char* name)
 void decompress_name(const uint8_t* buf, size_t buf_len, size_t offset, size_t* len, char* name)
 {
     // decompress the name
-    printf("decompress_name\n");
+    // printf("decompress_name\n");
     size_t ori_offset = offset;
     if (offset >= buf_len) {
-        printf("Error: buffer is too short\n");
-        exit(1);
+        PANIC("Error: buffer is too short");
     }
     int name_len = 0;
     while (offset < buf_len)
@@ -388,12 +418,13 @@ void decompress_name(const uint8_t* buf, size_t buf_len, size_t offset, size_t* 
             // pointer
             uint16_t pointer = (uint16_t)buf[offset] << 8 | buf[offset + 1];
             pointer &= 0x3FFF;
-            char buf2[NAME_MAX_SIZE];
-            decompress_name(buf, buf_len, pointer, NULL, buf2);
-            size_t name_base = name_len;
-            size_t new_name_len = strlen(buf2) + 1;
-            memcpy(name + name_base, buf2, new_name_len);
-            name_len += new_name_len;
+
+            // printf("pointer: %d\n", pointer);
+
+            size_t new_name_len = 0;
+            decompress_name(buf, buf_len, pointer, NULL, name + name_len);
+
+            name_len += strlen(name + name_len);
             offset += 2;
             break;
         }
@@ -401,6 +432,7 @@ void decompress_name(const uint8_t* buf, size_t buf_len, size_t offset, size_t* 
         {
             // name
             name[name_len] = buf[offset++];
+            // printf("name[%d]: %02x\n", name_len, name[name_len]);
             if (name[name_len] == 0)
             {
                 break;
@@ -408,6 +440,14 @@ void decompress_name(const uint8_t* buf, size_t buf_len, size_t offset, size_t* 
             name_len++;
         }
     }
+
+    // printf("res_name: \n");
+    // for (size_t i = 0; i < name_len; i++)
+    // {
+    //     printf("%02x ", name[i]);
+    // }
+    // printf("\n");
+
 
     if (len != NULL)
     {

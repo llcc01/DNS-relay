@@ -37,6 +37,11 @@ typedef struct {
 #define BUF_MAX_SIZE 1024
 #define NAME_MAX_SIZE 65
 
+#define RCODE_NO_ERROR 0
+#define RCODE_FORMAT_ERROR 1
+#define RCODE_SERVER_FAILURE 2
+#define RCODE_NAME_ERROR 3
+
 void protocol_init(SOCKET* s, uint16_t port);
 void protocol_send(const SOCKET* s, const SOCKADDR_IN* sock_in, const dns_message_t* msg);
 void protocol_recv(const SOCKET* s, SOCKADDR_IN* sock_in, dns_message_t* msg);
@@ -58,5 +63,6 @@ void name_to_qname(const char* name, char* qname);
 void qname_to_name(const char* qname, char* name);
 
 void decompress_name(const uint8_t* buf, size_t buf_len, size_t offset, size_t* len, char* name);
+void decompress_rdata(const uint8_t* buf, size_t buf_len, size_t offset, size_t len, char* name);
 
 #endif
