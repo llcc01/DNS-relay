@@ -9,8 +9,10 @@ WSADATA wsaData;
 // 协议初始化
 void protocol_init(SOCKET* s, uint16_t port)
 {
+
     // initialize the protocol
     printf("protocol_init\n");
+#ifdef _WIN32
     int iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
     if (iResult != NO_ERROR) {
         PANIC("Error at WSAStartup()");
@@ -40,6 +42,11 @@ void protocol_init(SOCKET* s, uint16_t port)
         WSACleanup();
         PANIC("Error at bind()");
     }
+#elif __linux__
+    // UDP
+    *s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+
+#endif
 
     printf("bind() is OK!\n");
 }

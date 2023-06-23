@@ -1,9 +1,15 @@
 #ifndef PROTOCOL_H__
 #define PROTOCOL_H__
 
-#include <winsock2.h>
 #include <stdint.h>
 #include "database.h"
+
+#ifdef _WIN32
+#include <winsock2.h>
+#elif __linux__
+#include <sys/socket.h>
+#include <netinet/in.h>
+#endif
 
 typedef struct {
     uint16_t id;
