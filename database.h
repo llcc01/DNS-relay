@@ -19,7 +19,7 @@
 #define CLASS_IN 1
 
 #define LOCAL_NAME "1.0.0.127.in-addr.arpa."
-#define LOCAL_DOMAIN "dns-relay.lc."
+#define LOCAL_DOMAIN "dns-relay."
 
 typedef struct {
     char* name;
@@ -47,5 +47,6 @@ void dns_record_print(const dns_record_t* record);
 void dns_record_to_buf(const dns_record_t* record, uint8_t* buf, size_t* len);
 void dns_record_from_buf(const uint8_t* buf, size_t buf_len, size_t* len, size_t offset, dns_record_t* record);
 void dns_record_free(dns_record_t* record);
+void dns_record_copy(dns_record_t* dst, const dns_record_t* src);
 
 #endif

@@ -28,8 +28,8 @@ void database_init()
     char local_domain[NAME_MAX_SIZE];
     name_to_qname(LOCAL_DOMAIN, local_domain);
     local_name_rec.rdlength = strlen(local_domain) + 1;
-    local_name_rec.rdata = malloc(strlen(local_domain) + 1);
-    strcpy(local_name_rec.rdata, local_domain);
+    local_name_rec.rdata = malloc(local_name_rec.rdlength);
+    memcpy(local_name_rec.rdata, local_domain, local_name_rec.rdlength);
 }
 
 void database_add(const dns_record_t* record)
@@ -60,7 +60,7 @@ void database_load(const char* filename)
         PANIC("Error: cannot open file %s", filename);
     }
     char name[256];
-    uint8_t ip_addr[4];
+    int ip_addr[4];
     dns_record_t record;
     while (fscanf(fp, "%d.%d.%d.%d %s", &ip_addr[0], &ip_addr[1], &ip_addr[2], &ip_addr[3], name) != EOF)
     {
@@ -71,7 +71,12 @@ void database_load(const char* filename)
         record.class = CLASS_IN;
         record.ttl = 120;
         record.rdlength = 4;
-        record.rdata = ip_addr;
+        record.rdata = malloc(4);
+        for (size_t i = 0; i < 4; i++)
+        {
+            record.rdata[i] = ip_addr[i];
+        }
+
         database_add(&record);
         // dns_record_print(&record);
     }
@@ -80,17 +85,12 @@ void database_load(const char* filename)
 void database_lookup(const char* name, dns_record_t* record)
 {
     // lookup the record in the database
-    printf("database_lookup\n");
+    // printf("database_lookup\n");
     for (int i = 0; i < database.size; i++)
     {
         if (strcmp(database.records[i].name, name) == 0)
         {
-            record->name = database.records[i].name;
-            record->type = database.records[i].type;
-            record->class = database.records[i].class;
-            record->ttl = database.records[i].ttl;
-            record->rdlength = database.records[i].rdlength;
-            record->rdata = database.records[i].rdata;
+            dns_record_copy(record, &(database.records[i]));
             return;
         }
     }
@@ -126,7 +126,7 @@ void dns_record_print(const dns_record_t* record)
     else if (record->type == TYPE_CNAME)
     {
         char cname[NAME_MAX_SIZE];
-        qname_to_name(record->rdata, cname);
+        qname_to_name((char*)(record->rdata), cname);
         printf("CNAME %s\n", cname);
     }
     else if (record->type == TYPE_PTR)
@@ -244,4 +244,18 @@ void dns_record_free(dns_record_t* record)
     // printf("dns_record_free\n");
     free(record->name);
     free(record->rdata);
+}
+
+void dns_record_copy(dns_record_t* dst, const dns_record_t* src)
+{
+    // copy the record
+    // printf("dns_record_copy\n");
+    dst->name = malloc(strlen(src->name) + 1);
+    strcpy(dst->name, src->name);
+    dst->type = src->type;
+    dst->class = src->class;
+    dst->ttl = src->ttl;
+    dst->rdlength = src->rdlength;
+    dst->rdata = malloc(src->rdlength);
+    memcpy(dst->rdata, src->rdata, src->rdlength);
 }

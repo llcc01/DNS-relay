@@ -43,8 +43,8 @@ typedef struct {
 #define RCODE_NAME_ERROR 3
 
 void protocol_init(SOCKET* s, uint16_t port);
-void protocol_send(const SOCKET* s, const SOCKADDR_IN* sock_in, const dns_message_t* msg);
-void protocol_recv(const SOCKET* s, SOCKADDR_IN* sock_in, dns_message_t* msg);
+void protocol_send(SOCKET s, const SOCKADDR_IN* sock_in, const dns_message_t* msg);
+void protocol_recv(SOCKET s, SOCKADDR_IN* sock_in, dns_message_t* msg);
 
 void dns_header_set_flags(dns_header_t* header, uint16_t flags, uint8_t opcode, uint8_t rcode);
 void dns_header_to_buf(const dns_header_t* header, uint8_t* buf, size_t* len);
@@ -54,10 +54,12 @@ void dns_header_from_buf(const uint8_t* buf, size_t buf_len, dns_header_t* heade
 void dns_message_to_buf(const dns_message_t* msg, uint8_t* buf, size_t* len);
 void dns_message_from_buf(const uint8_t* buf, size_t buf_len, dns_message_t* msg);
 void dns_message_free(dns_message_t* msg);
+void dns_message_copy(dns_message_t* dst, const dns_message_t* src);
 
 void dns_question_to_buf(const dns_question_t* question, uint8_t* buf, size_t* len);
 void dns_question_from_buf(const uint8_t* buf, size_t buf_len, size_t* len, size_t offset, dns_question_t* question);
 void dns_question_free(dns_question_t* question);
+void dns_question_copy(dns_question_t* dst, const dns_question_t* src);
 
 void name_to_qname(const char* name, char* qname);
 void qname_to_name(const char* qname, char* name);

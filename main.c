@@ -3,6 +3,44 @@
 #include "database.h"
 #include "protocol.h"
 #include "dns.h"
+#include "time.h"
+
+SOCKET s;
+SOCKET s_upstream;
+
+void listen_upstream()
+{
+
+    while (1)
+    {
+        SOCKADDR_IN from_addr;
+        dns_message_t msg;
+
+        protocol_recv(s_upstream, &from_addr, &msg);
+
+        if (!(msg.header.flags & FLAG_QR) || from_addr.sin_addr.s_addr != inet_addr(DNS_UPSTREAM_SERVER))
+        {
+            dns_message_free(&msg);
+            continue;
+        }
+
+        dns_handle_arg_t* arg = malloc(sizeof(dns_handle_arg_t));
+        arg->sock_in = from_addr;
+        arg->msg = msg;
+
+
+        pthread_create(NULL, NULL, (void* (*)(void*))dns_handle_r, (void*)arg);
+    }
+}
+
+void monitor()
+{
+    while (1)
+    {
+        printf("\ntransaction_id_counter: %d\n", transaction_id_counter);
+        Sleep(1000);
+    }
+}
 
 int main(int, char**) {
     printf("Hello, from DNS relay!\n");
@@ -10,12 +48,15 @@ int main(int, char**) {
     database_init();
     database_load(FILENAME);
 
+    dns_transaction_id_init();
+
     // dns_record_t record;
     // database_lookup("test1", &record);
     // dns_record_print(&record);
 
-    SOCKET s;
     protocol_init(&s, 53);
+    protocol_init(&s_upstream, DNS_UPSTREAM_LISTEN_PORT);
+
 
     // dns_message_t msg;
     // msg.header.id = 0x11cc;
@@ -53,26 +94,34 @@ int main(int, char**) {
     //     dns_record_print(&msg.answers[i]);
     // }
 
+    pthread_create(NULL, NULL, (void* (*)(void*))listen_upstream, NULL);
+    pthread_create(NULL, NULL, (void* (*)(void*))monitor, NULL);
+
     while (1)
     {
+        // if (transaction_id_counter > 5)
+        // {
+        //     continue;
+        // }
+
         SOCKADDR_IN from_addr;
         dns_message_t msg;
 
-        protocol_recv(&s, &from_addr, &msg);
-
-        dns_handle_arg_t* arg = malloc(sizeof(dns_handle_arg_t));
-        arg->s = &s;
-        arg->sock_in = from_addr;
-        arg->msg = msg;
+        protocol_recv(s, &from_addr, &msg);
 
         if (msg.header.flags & FLAG_QR)
         {
-            pthread_create(NULL, NULL, (void* (*)(void*))dns_handle_r, (void*)arg);
+            dns_message_free(&msg);
+            continue;
         }
-        else
-        {
-            pthread_create(NULL, NULL, (void* (*)(void*))dns_handle_q, (void*)arg);
-        }
+
+        dns_handle_arg_t* arg = malloc(sizeof(dns_handle_arg_t));
+        arg->sock_in = from_addr;
+        arg->msg = msg;
+
+        dns_handle_q(arg);
+
+        // pthread_create(NULL, NULL, (void* (*)(void*))dns_handle_q, (void*)arg);
     }
 
 

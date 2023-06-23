@@ -18,7 +18,7 @@ void protocol_init(SOCKET* s, uint16_t port)
     // UDP
     *s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if (*s == INVALID_SOCKET) {
-        printf("Error at socket(): %ld\n", WSAGetLastError());
+        printf("Error at socket(): %d\n", WSAGetLastError());
         WSACleanup();
         PANIC("Error at socket()");
     }
@@ -38,40 +38,53 @@ void protocol_init(SOCKET* s, uint16_t port)
     printf("bind() is OK!\n");
 }
 
-void protocol_send(const SOCKET* s, const SOCKADDR_IN* sock_in, const dns_message_t* msg)
+void protocol_send(SOCKET s, const SOCKADDR_IN* sock_in, const dns_message_t* msg)
 {
     // send the message to the client
     // printf("protocol_send\n");
 
-    char* buffer = malloc(BUF_MAX_SIZE);
+    // uint8_t buffer[BUF_MAX_SIZE];
+    uint8_t* buffer = malloc(BUF_MAX_SIZE);
     size_t buffer_size;
+
+    // LARGE_INTEGER start, end, freq;
+
     dns_message_to_buf(msg, buffer, &buffer_size);
 
-    if (sendto(*s, (char*)buffer, buffer_size, 0, (SOCKADDR*)sock_in, sizeof(*sock_in)) == SOCKET_ERROR) {
+    // QueryPerformanceCounter(&start);
+
+    if (sendto(s, (char*)buffer, buffer_size, 0, (SOCKADDR*)sock_in, sizeof(*sock_in)) == SOCKET_ERROR) {
         free(buffer);
         printf("sendto() failed. %d\n", WSAGetLastError());
-        closesocket(*s);
+        closesocket(s);
         WSACleanup();
         PANIC("Error at sendto()");
     }
 
     free(buffer);
+
+    // QueryPerformanceCounter(&end);
+    // QueryPerformanceFrequency(&freq);
+    // printf("(%d)", end.QuadPart - start.QuadPart);
+
     // printf("sendto() is OK!\n");
 }
 
-void protocol_recv(const SOCKET* s, SOCKADDR_IN* sock_in, dns_message_t* msg)
+void protocol_recv(SOCKET s, SOCKADDR_IN* sock_in, dns_message_t* msg)
 {
     // receive the message from the client
     // printf("protocol_recv\n");
 
     int sock_in_size = sizeof(*sock_in);
 
-    char* buffer = malloc(BUF_MAX_SIZE);
-    int res = recvfrom(*s, (char*)buffer, BUF_MAX_SIZE, 0, (SOCKADDR*)sock_in, &sock_in_size);
+    // uint8_t buffer[BUF_MAX_SIZE];
+    uint8_t* buffer = malloc(BUF_MAX_SIZE);
+
+    int res = recvfrom(s, (char*)buffer, BUF_MAX_SIZE, 0, (SOCKADDR*)sock_in, &sock_in_size);
     if (res == SOCKET_ERROR) {
         free(buffer);
         printf("recvfrom() failed. %d\n", WSAGetLastError());
-        closesocket(*s);
+        closesocket(s);
         WSACleanup();
         PANIC("Error at recvfrom()");
     }
@@ -79,10 +92,10 @@ void protocol_recv(const SOCKET* s, SOCKADDR_IN* sock_in, dns_message_t* msg)
     {
         // printf("recvfrom() recv %d bytes \n", res);
 
-    // for (size_t i = 0; i < res; i++) {
-    //     printf("%02x ", (uint8_t)buffer[i]);
-    // }
-    // printf("\n");
+        // for (size_t i = 0; i < res; i++) {
+        //     printf("%02x ", (uint8_t)buffer[i]);
+        // }
+        // printf("\n");
 
         dns_message_from_buf(buffer, res, msg);
         free(buffer);
@@ -301,26 +314,64 @@ void dns_message_free(dns_message_t* msg)
 {
     // free the message
     // printf("dns_message_free\n");
-    for (size_t i = 0; i < msg->header.qdcount; i++) {
-        dns_question_free(&msg->questions[i]);
+    if (msg->header.qdcount > 0)
+    {
+        for (size_t i = 0; i < msg->header.qdcount; i++) {
+            dns_question_free(&msg->questions[i]);
+        }
+        free(msg->questions);
     }
-    free(msg->questions);
 
-    for (size_t i = 0; i < msg->header.ancount; i++) {
-        dns_record_free(&msg->answers[i]);
+    if (msg->header.ancount > 0)
+    {
+        for (size_t i = 0; i < msg->header.ancount; i++) {
+            dns_record_free(&msg->answers[i]);
+        }
+        free(msg->answers);
     }
-    free(msg->answers);
 
-    for (size_t i = 0; i < msg->header.nscount; i++) {
-        dns_record_free(&msg->authorities[i]);
+    if (msg->header.nscount > 0)
+    {
+        for (size_t i = 0; i < msg->header.nscount; i++) {
+            dns_record_free(&msg->authorities[i]);
+        }
+        free(msg->authorities);
     }
-    free(msg->authorities);
 
-    for (size_t i = 0; i < msg->header.arcount; i++) {
-        dns_record_free(&msg->additionals[i]);
+    if (msg->header.arcount > 0)
+    {
+        for (size_t i = 0; i < msg->header.arcount; i++) {
+            dns_record_free(&msg->additionals[i]);
+        }
+        free(msg->additionals);
     }
-    free(msg->additionals);
 }
+
+void dns_message_copy(dns_message_t* dst, const dns_message_t* src)
+{
+    dst->header = src->header;
+
+    dst->questions = malloc(dst->header.qdcount * sizeof(dns_question_t));
+    for (size_t i = 0; i < dst->header.qdcount; i++) {
+        dns_question_copy(&dst->questions[i], &src->questions[i]);
+    }
+
+    dst->answers = malloc(dst->header.ancount * sizeof(dns_record_t));
+    for (size_t i = 0; i < dst->header.ancount; i++) {
+        dns_record_copy(&dst->answers[i], &src->answers[i]);
+    }
+
+    dst->authorities = malloc(dst->header.nscount * sizeof(dns_record_t));
+    for (size_t i = 0; i < dst->header.nscount; i++) {
+        dns_record_copy(&dst->authorities[i], &src->authorities[i]);
+    }
+
+    dst->additionals = malloc(dst->header.arcount * sizeof(dns_record_t));
+    for (size_t i = 0; i < dst->header.arcount; i++) {
+        dns_record_copy(&dst->additionals[i], &src->additionals[i]);
+    }
+}
+
 
 void dns_question_to_buf(const dns_question_t* question, uint8_t* buf, size_t* len)
 {
@@ -347,7 +398,7 @@ void dns_question_from_buf(const uint8_t* buf, size_t buf_len, size_t* len, size
     size_t compress_name_len = 0;
     char name[NAME_MAX_SIZE];
     decompress_name(buf, buf_len, offset, &compress_name_len, name);
-    question->name = malloc(compress_name_len);
+    question->name = malloc(strlen(name) + 1);
     strcpy(question->name, name);
     offset += compress_name_len;
 
@@ -365,6 +416,15 @@ void dns_question_free(dns_question_t* question)
     // printf("dns_question_free\n");
     free(question->name);
 }
+
+void dns_question_copy(dns_question_t* dst, const dns_question_t* src)
+{
+    dst->name = malloc(strlen(src->name) + 1);
+    strcpy(dst->name, src->name);
+    dst->type = src->type;
+    dst->class = src->class;
+}
+
 
 void name_to_qname(const char* name, char* qname)
 {
@@ -421,7 +481,7 @@ void decompress_name(const uint8_t* buf, size_t buf_len, size_t offset, size_t* 
 
             // printf("pointer: %d\n", pointer);
 
-            size_t new_name_len = 0;
+            // size_t new_name_len = 0;
             decompress_name(buf, buf_len, pointer, NULL, name + name_len);
 
             name_len += strlen(name + name_len);

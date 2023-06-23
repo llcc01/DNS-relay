@@ -11,7 +11,7 @@ add_executable(DNS-relay
     dns.c
 )
 
-add_compile_options(-Wall -Wextra -Werror -Wno-unused-parameter)
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3  -Wall")
 
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/dnsrelay.txt
     DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
