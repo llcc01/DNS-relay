@@ -10,11 +10,11 @@ typedef struct {
 } dns_handle_arg_t;
 
 typedef struct {
-    SOCKADDR_IN sock_in;
-    uint16_t org_id;
-    uint16_t id;
-    dns_message_t msg;
-    time_t start_time;
+    SOCKADDR_IN sock_in;// 源地址
+    uint16_t org_id;    // 源消息的id
+    uint16_t id;        // 本消息的id
+    dns_message_t msg;  // 源消息
+    time_t start_time;  // 开始时间
 } transaction_arg_t;
 
 #define DNS_UPSTREAM_SERVER "10.3.9.4"
