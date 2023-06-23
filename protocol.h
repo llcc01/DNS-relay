@@ -57,6 +57,7 @@ void dns_message_to_buf(const dns_message_t* msg, uint8_t* buf, size_t* len);
 void dns_message_from_buf(const uint8_t* buf, size_t buf_len, dns_message_t* msg);
 void dns_message_free(dns_message_t* msg);
 void dns_message_copy(dns_message_t* dst, const dns_message_t* src);
+uint8_t dns_message_is_empty(const dns_message_t* msg);
 
 void dns_question_to_buf(const dns_question_t* question, uint8_t* buf, size_t* len);
 void dns_question_from_buf(const uint8_t* buf, size_t buf_len, size_t* len, size_t offset, dns_question_t* question);

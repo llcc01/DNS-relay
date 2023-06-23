@@ -3,20 +3,13 @@
 #include <stdio.h>
 #include "main.h"
 
-uint16_t transaction_id_counter = 0;
 uint16_t transaction_id_base = 0;
-uint16_t transaction_id_bucket[65536] = { 0 };
-uint8_t transaction_id_state[65536] = { 0 };
+transaction_arg_t transactions[65536];
 pthread_mutex_t transaction_id_mutex;
 dns_message_t dns_msg_cache[65536] = { 0 };
 
 void dns_transaction_id_init()
 {
-    transaction_id_counter = 0;
-    for (int i = 0; i < 65536; i++)
-    {
-        transaction_id_bucket[i] = i;
-    }
     pthread_mutex_init(&transaction_id_mutex, NULL);
 }
 
@@ -25,48 +18,25 @@ void dns_transaction_id_free()
     pthread_mutex_destroy(&transaction_id_mutex);
 }
 
-// 从事务ID池中获取一个ID
+// 获取一个ID
 int32_t dns_transaction_id_get()
 {
     pthread_mutex_lock(&transaction_id_mutex);
-    if (transaction_id_counter == 65536)
-    {
-        pthread_mutex_unlock(&transaction_id_mutex);
-        return -1;
-    }
-    uint16_t index = transaction_id_base + transaction_id_counter;
-    uint16_t id = transaction_id_bucket[index];
-    transaction_id_counter++;
-
-    pthread_mutex_unlock(&transaction_id_mutex);
-    return id;
-}
-
-// 将事务ID放回事务ID池中
-void dns_transaction_id_put(uint16_t id)
-{
-    pthread_mutex_lock(&transaction_id_mutex);
-    if (transaction_id_counter == 0)
-    {
-        pthread_mutex_unlock(&transaction_id_mutex);
-        return;
-    }
-    transaction_id_counter--;
-    transaction_id_bucket[transaction_id_base] = id;
     transaction_id_base++;
     pthread_mutex_unlock(&transaction_id_mutex);
+    return transaction_id_base;
 }
 
-inline void dns_transaction_id_set_state(uint16_t id, uint8_t state)
+inline void dns_transaction_set(const transaction_arg_t* arg)
 {
     pthread_mutex_lock(&transaction_id_mutex);
-    transaction_id_state[id] = state;
+    transactions[arg->id] = *arg;
     pthread_mutex_unlock(&transaction_id_mutex);
 }
 
-inline uint8_t dns_transaction_id_get_state(uint16_t id)
+inline transaction_arg_t dns_transaction_get(uint16_t id)
 {
-    return transaction_id_state[id];
+    return transactions[id];
 }
 
 // 处理DNS请求的线程
@@ -87,7 +57,7 @@ void dns_handle_q(dns_handle_arg_t* arg)
     // printf("\ntransaction_id get: %d, ori_id: %d\n", transaction_id, ori_id);
 
     //
-    dns_message_t msg_send;    
+    dns_message_t msg_send;
     dns_message_copy(&msg_send, &msg);
 
     msg_send.header.flags |= FLAG_QR;
@@ -186,6 +156,7 @@ void dns_handle_q(dns_handle_arg_t* arg)
         {
             dns_record_free(&msg_send.answers[0]);
             free(msg_send.answers);
+            msg_send.answers = NULL;
             msg_send.header.ancount = 0;
             break;
         }
@@ -195,6 +166,7 @@ void dns_handle_q(dns_handle_arg_t* arg)
             // printf("banned\n");
             dns_record_free(&msg_send.answers[0]);
             free(msg_send.answers);
+            msg_send.answers = NULL;
             msg_send.header.ancount = 0;
             banned = 1;
             dns_header_set_flags(&(msg_send.header), msg_send.header.flags, 0, RCODE_NAME_ERROR);
@@ -210,13 +182,23 @@ void dns_handle_q(dns_handle_arg_t* arg)
     if (msg_send.header.ancount == 0 && banned == 0)
     {
         // printf("not found in database\n");
-        transaction_arg_t* arg = malloc(sizeof(transaction_arg_t));
-        arg->msg = msg;
-        arg->msg_send = msg_send;
-        arg->org_id = ori_id;
-        arg->id = transaction_id;
-        arg->sock_in = sock_in;
-        pthread_create(NULL, NULL, (void* (*)(void*))wait_for_upstream, (void*)arg);
+        transaction_arg_t arg;
+        arg.msg = msg;
+        arg.org_id = ori_id;
+        arg.id = transaction_id;
+        arg.sock_in = sock_in;
+        arg.start_time = time(NULL);
+
+        // 若元消息未释放，则释放
+        if (!dns_message_is_empty(&transactions[transaction_id].msg))
+        {
+            dns_message_free(&transactions[transaction_id].msg);
+        }
+
+        dns_transaction_set(&arg);
+
+        msg.header.id = transaction_id;
+        dns_question_upstream(&msg);
     }
     else
     {
@@ -225,8 +207,6 @@ void dns_handle_q(dns_handle_arg_t* arg)
 
         dns_message_free(&msg);
         dns_message_free(&msg_send);
-
-        dns_transaction_id_put(transaction_id);
     }
 
     // QueryPerformanceCounter(&time_arr[3]);
@@ -240,59 +220,26 @@ void dns_handle_q(dns_handle_arg_t* arg)
 
 }
 
-// 等待上游DNS服务器的响应
-void wait_for_upstream(transaction_arg_t* arg)
-{
-    dns_message_t msg = arg->msg;
-    dns_message_t msg_send = arg->msg_send;
-    uint16_t ori_id = arg->org_id;
-    uint16_t transaction_id = arg->id;
-    SOCKADDR_IN sock_in = arg->sock_in;
-    free(arg);
-
-    dns_transaction_id_set_state(transaction_id, 0);
-    msg.header.id = transaction_id;
-    dns_question_upstream(&msg);
-
-    size_t count = 0;
-    while (dns_transaction_id_get_state(transaction_id) == 0 && count < DNS_UPSTREAM_TIMEOUT)
-    {
-        Sleep(10);
-        count++;
-    }
-    if (count < DNS_UPSTREAM_TIMEOUT)
-    {
-        dns_message_t upstream_msg_send;
-        upstream_msg_send = dns_msg_cache[transaction_id];
-        upstream_msg_send.header.id = ori_id;
-        protocol_send(s, &sock_in, &upstream_msg_send);
-        dns_message_free(&upstream_msg_send);
-    }
-    else
-    {
-        dns_header_set_flags(&(msg_send.header), msg_send.header.flags, 0, RCODE_SERVER_FAILURE);
-        msg_send.header.id = ori_id;
-        protocol_send(s, &sock_in, &msg_send);
-    }
-
-    dns_message_free(&msg);
-    dns_message_free(&msg_send);
-
-    dns_transaction_id_put(transaction_id);
-}
-
 // 处理DNS响应的线程
 void dns_handle_r(dns_handle_arg_t* arg)
 {
-    // SOCKET* s = arg->s;
-    // SOCKADDR_IN sock_in = arg->sock_in;
-    dns_message_t msg = arg->msg;
-    free(arg);
-
     // printf("dns_handle_r\n");
 
-    dns_msg_cache[msg.header.id] = msg;
-    dns_transaction_id_set_state(msg.header.id, 1);
+    // SOCKET* s = arg->s;
+    // SOCKADDR_IN sock_in = arg->sock_in;
+    dns_message_t upstream_msg = arg->msg;
+    free(arg);
+
+    uint16_t transaction_id = upstream_msg.header.id;
+    uint16_t ori_id = transactions[transaction_id].org_id;
+    SOCKADDR_IN sock_in = transactions[transaction_id].sock_in;
+    dns_message_t msg = transactions[transaction_id].msg;
+
+    upstream_msg.header.id = ori_id;
+    protocol_send(s, &sock_in, &upstream_msg);
+
+    dns_message_free(&msg);
+    dns_message_free(&upstream_msg);
 }
 
 // 向上游DNS服务器发送DNS请求

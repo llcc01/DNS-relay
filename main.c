@@ -30,8 +30,9 @@ void listen_upstream()
         arg->sock_in = from_addr;
         arg->msg = msg;
 
+        dns_handle_r(arg);
 
-        pthread_create(NULL, NULL, (void* (*)(void*))dns_handle_r, (void*)arg);
+        // pthread_create(NULL, NULL, (void* (*)(void*))dns_handle_r, (void*)arg);
     }
 }
 
@@ -40,7 +41,7 @@ void monitor()
 {
     while (1)
     {
-        printf("\ntransaction_id_counter: %d base: %d\n", transaction_id_counter, transaction_id_base);
+        printf("\ntransaction_id_base: %d\n", transaction_id_base);
         Sleep(1000);
     }
 }
@@ -123,7 +124,7 @@ int main(int, char**) {
         arg->sock_in = from_addr;
         arg->msg = msg;
 
-        // 使用单线程处理DNS请求，多线程效率较低
+        // 使用单线程处理DNS请求，多线程效率较低？
         dns_handle_q(arg);
 
         // pthread_create(NULL, NULL, (void* (*)(void*))dns_handle_q, (void*)arg);

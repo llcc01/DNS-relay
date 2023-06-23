@@ -354,6 +354,11 @@ void dns_message_free(dns_message_t* msg)
         }
         free(msg->additionals);
     }
+
+    msg->header.qdcount = 0;
+    msg->header.ancount = 0;
+    msg->header.nscount = 0;
+    msg->header.arcount = 0;
 }
 
 // 深拷贝消息
@@ -413,6 +418,11 @@ void dns_message_copy(dns_message_t* dst, const dns_message_t* src)
         dst->additionals = NULL;
     }
 
+}
+
+uint8_t dns_message_is_empty(const dns_message_t* msg)
+{
+    return msg->header.qdcount == 0 && msg->header.ancount == 0 && msg->header.nscount == 0 && msg->header.arcount == 0;
 }
 
 
