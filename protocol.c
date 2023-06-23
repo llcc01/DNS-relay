@@ -23,6 +23,11 @@ void protocol_init(SOCKET* s, uint16_t port)
         PANIC("Error at socket()");
     }
 
+    // 忽略reset
+    BOOL bNewBehavior = FALSE;
+    DWORD dwBytesReturned = 0;
+    WSAIoctl(*s, SIO_UDP_CONNRESET, &bNewBehavior, sizeof(bNewBehavior), NULL, 0, &dwBytesReturned, NULL, NULL);
+
     SOCKADDR_IN sock_in;
     sock_in.sin_family = AF_INET;
     sock_in.sin_port = htons(port);
@@ -351,25 +356,58 @@ void dns_message_copy(dns_message_t* dst, const dns_message_t* src)
 {
     dst->header = src->header;
 
-    dst->questions = malloc(dst->header.qdcount * sizeof(dns_question_t));
-    for (size_t i = 0; i < dst->header.qdcount; i++) {
-        dns_question_copy(&dst->questions[i], &src->questions[i]);
+    if (dst->header.qdcount > 0)
+    {
+        dst->questions = malloc(dst->header.qdcount * sizeof(dns_question_t));
+        for (size_t i = 0; i < dst->header.qdcount; i++)
+        {
+            dns_question_copy(&dst->questions[i], &src->questions[i]);
+        }
+    }
+    else
+    {
+        dst->questions = NULL;
     }
 
-    dst->answers = malloc(dst->header.ancount * sizeof(dns_record_t));
-    for (size_t i = 0; i < dst->header.ancount; i++) {
-        dns_record_copy(&dst->answers[i], &src->answers[i]);
+    if (dst->header.ancount > 0)
+    {
+        dst->answers = malloc(dst->header.ancount * sizeof(dns_record_t));
+        for (size_t i = 0; i < dst->header.ancount; i++)
+        {
+            dns_record_copy(&dst->answers[i], &src->answers[i]);
+        }
+    }
+    else
+    {
+        dst->answers = NULL;
     }
 
-    dst->authorities = malloc(dst->header.nscount * sizeof(dns_record_t));
-    for (size_t i = 0; i < dst->header.nscount; i++) {
-        dns_record_copy(&dst->authorities[i], &src->authorities[i]);
+    if (dst->header.nscount > 0)
+    {
+        dst->authorities = malloc(dst->header.nscount * sizeof(dns_record_t));
+        for (size_t i = 0; i < dst->header.nscount; i++)
+        {
+            dns_record_copy(&dst->authorities[i], &src->authorities[i]);
+        }
+    }
+    else
+    {
+        dst->authorities = NULL;
     }
 
-    dst->additionals = malloc(dst->header.arcount * sizeof(dns_record_t));
-    for (size_t i = 0; i < dst->header.arcount; i++) {
-        dns_record_copy(&dst->additionals[i], &src->additionals[i]);
+    if (dst->header.arcount > 0)
+    {
+        dst->additionals = malloc(dst->header.arcount * sizeof(dns_record_t));
+        for (size_t i = 0; i < dst->header.arcount; i++)
+        {
+            dns_record_copy(&dst->additionals[i], &src->additionals[i]);
+        }
     }
+    else
+    {
+        dst->additionals = NULL;
+    }
+
 }
 
 

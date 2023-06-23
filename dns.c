@@ -3,7 +3,8 @@
 #include <stdio.h>
 #include "main.h"
 
-int32_t transaction_id_counter = 0;
+uint16_t transaction_id_counter = 0;
+uint16_t transaction_id_base = 0;
 uint16_t transaction_id_bucket[65536] = { 0 };
 uint8_t transaction_id_state[65536] = { 0 };
 pthread_mutex_t transaction_id_mutex;
@@ -32,7 +33,8 @@ int32_t dns_transaction_id_get()
         pthread_mutex_unlock(&transaction_id_mutex);
         return -1;
     }
-    uint16_t id = transaction_id_bucket[transaction_id_counter];
+    uint16_t index = transaction_id_base + transaction_id_counter;
+    uint16_t id = transaction_id_bucket[index];
     transaction_id_counter++;
 
     pthread_mutex_unlock(&transaction_id_mutex);
@@ -48,7 +50,8 @@ void dns_transaction_id_put(uint16_t id)
         return;
     }
     transaction_id_counter--;
-    transaction_id_bucket[transaction_id_counter] = id;
+    transaction_id_bucket[transaction_id_base] = id;
+    transaction_id_base++;
     pthread_mutex_unlock(&transaction_id_mutex);
 }
 
@@ -81,6 +84,7 @@ void dns_handle_q(dns_handle_arg_t* arg)
     // printf("\ntransaction_id get: %d, ori_id: %d\n", transaction_id, ori_id);
 
     dns_message_t msg_send;
+    // msg_send = msg;
     dns_message_copy(&msg_send, &msg);
 
     msg_send.header.flags |= FLAG_QR;
@@ -92,6 +96,9 @@ void dns_handle_q(dns_handle_arg_t* arg)
     // 当有一个本地查询失败时，就不再进行本地查询
     for (int i = 0; i < msg_send.header.qdcount; i++)
     {
+        // banned = 1;
+        // break;
+
         dns_question_t question = msg_send.questions[i];
 
         // char name[NAME_MAX_SIZE];
@@ -174,6 +181,8 @@ void dns_handle_q(dns_handle_arg_t* arg)
         database_lookup(question.name, msg_send.answers);
         if (msg_send.answers[0].type == 0)
         {
+            dns_record_free(&msg_send.answers[0]);
+            free(msg_send.answers);
             msg_send.header.ancount = 0;
             break;
         }
@@ -181,6 +190,8 @@ void dns_handle_q(dns_handle_arg_t* arg)
         if (*(msg_send.answers[0].rdata) == 0)
         {
             // printf("banned\n");
+            dns_record_free(&msg_send.answers[0]);
+            free(msg_send.answers);
             msg_send.header.ancount = 0;
             banned = 1;
             dns_header_set_flags(&(msg_send.header), msg_send.header.flags, 0, RCODE_NAME_ERROR);
@@ -231,7 +242,7 @@ void wait_for_upstream(transaction_arg_t* arg)
     dns_message_t msg = arg->msg;
     dns_message_t msg_send = arg->msg_send;
     uint16_t ori_id = arg->org_id;
-    int16_t transaction_id = arg->id;
+    uint16_t transaction_id = arg->id;
     SOCKADDR_IN sock_in = arg->sock_in;
     free(arg);
 

@@ -42,6 +42,8 @@ typedef struct {
 #define RCODE_SERVER_FAILURE 2
 #define RCODE_NAME_ERROR 3
 
+#define SIO_UDP_CONNRESET _WSAIOW(IOC_VENDOR, 12)
+
 void protocol_init(SOCKET* s, uint16_t port);
 void protocol_send(SOCKET s, const SOCKADDR_IN* sock_in, const dns_message_t* msg);
 void protocol_recv(SOCKET s, SOCKADDR_IN* sock_in, dns_message_t* msg);
