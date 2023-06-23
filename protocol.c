@@ -6,6 +6,7 @@
 
 WSADATA wsaData;
 
+// 协议初始化
 void protocol_init(SOCKET* s, uint16_t port)
 {
     // initialize the protocol
@@ -43,6 +44,7 @@ void protocol_init(SOCKET* s, uint16_t port)
     printf("bind() is OK!\n");
 }
 
+// 协议发送消息
 void protocol_send(SOCKET s, const SOCKADDR_IN* sock_in, const dns_message_t* msg)
 {
     // send the message to the client
@@ -75,6 +77,7 @@ void protocol_send(SOCKET s, const SOCKADDR_IN* sock_in, const dns_message_t* ms
     // printf("sendto() is OK!\n");
 }
 
+// 协议接受消息
 void protocol_recv(SOCKET s, SOCKADDR_IN* sock_in, dns_message_t* msg)
 {
     // receive the message from the client
@@ -315,6 +318,7 @@ void dns_message_from_buf(const uint8_t* buf, size_t buf_len, dns_message_t* msg
     }
 }
 
+// 释放消息内容
 void dns_message_free(dns_message_t* msg)
 {
     // free the message
@@ -352,6 +356,7 @@ void dns_message_free(dns_message_t* msg)
     }
 }
 
+// 深拷贝消息
 void dns_message_copy(dns_message_t* dst, const dns_message_t* src)
 {
     dst->header = src->header;
@@ -448,6 +453,7 @@ void dns_question_from_buf(const uint8_t* buf, size_t buf_len, size_t* len, size
     *len = offset - ori_offset;
 }
 
+// 释放请求内容
 void dns_question_free(dns_question_t* question)
 {
     // free the question
@@ -455,6 +461,7 @@ void dns_question_free(dns_question_t* question)
     free(question->name);
 }
 
+// 深拷贝请求
 void dns_question_copy(dns_question_t* dst, const dns_question_t* src)
 {
     dst->name = malloc(strlen(src->name) + 1);
@@ -463,7 +470,7 @@ void dns_question_copy(dns_question_t* dst, const dns_question_t* src)
     dst->class = src->class;
 }
 
-
+// name转DNS格式
 void name_to_qname(const char* name, char* qname)
 {
     // convert the name to a qname
@@ -482,6 +489,7 @@ void name_to_qname(const char* name, char* qname)
     }
 }
 
+// DNS格式转name
 void qname_to_name(const char* qname, char* name)
 {
     // convert the qname to a name
@@ -500,6 +508,7 @@ void qname_to_name(const char* qname, char* name)
     }
 }
 
+// 解压缩name
 void decompress_name(const uint8_t* buf, size_t buf_len, size_t offset, size_t* len, char* name)
 {
     // decompress the name
@@ -520,6 +529,8 @@ void decompress_name(const uint8_t* buf, size_t buf_len, size_t offset, size_t* 
             // printf("pointer: %d\n", pointer);
 
             // size_t new_name_len = 0;
+
+            // 递归解压缩
             decompress_name(buf, buf_len, pointer, NULL, name + name_len);
 
             name_len += strlen(name + name_len);

@@ -246,6 +246,7 @@ void dns_record_free(dns_record_t* record)
     free(record->rdata);
 }
 
+// 深拷贝记录
 void dns_record_copy(dns_record_t* dst, const dns_record_t* src)
 {
     // copy the record

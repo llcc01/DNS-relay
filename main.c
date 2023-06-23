@@ -8,6 +8,7 @@
 SOCKET s;
 SOCKET s_upstream;
 
+// 监听上游服务器的线程，读取返回的消息并处理
 void listen_upstream()
 {
 
@@ -16,6 +17,7 @@ void listen_upstream()
         SOCKADDR_IN from_addr;
         dns_message_t msg;
 
+        // 阻塞等待上游服务器的响应
         protocol_recv(s_upstream, &from_addr, &msg);
 
         if (!(msg.header.flags & FLAG_QR) || from_addr.sin_addr.s_addr != inet_addr(DNS_UPSTREAM_SERVER))
@@ -33,11 +35,12 @@ void listen_upstream()
     }
 }
 
+// 监控线程，打印状态
 void monitor()
 {
     while (1)
     {
-        printf("\ntransaction_id_counter: %d\n", transaction_id_counter);
+        printf("\ntransaction_id_counter: %d base: %d\n", transaction_id_counter, transaction_id_base);
         Sleep(1000);
     }
 }
@@ -107,6 +110,7 @@ int main(int, char**) {
         SOCKADDR_IN from_addr;
         dns_message_t msg;
 
+        // 阻塞等待客户端的请求
         protocol_recv(s, &from_addr, &msg);
 
         if (msg.header.flags & FLAG_QR)
@@ -119,6 +123,7 @@ int main(int, char**) {
         arg->sock_in = from_addr;
         arg->msg = msg;
 
+        // 使用单线程处理DNS请求，多线程效率较低
         dns_handle_q(arg);
 
         // pthread_create(NULL, NULL, (void* (*)(void*))dns_handle_q, (void*)arg);

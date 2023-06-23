@@ -25,6 +25,7 @@ void dns_transaction_id_free()
     pthread_mutex_destroy(&transaction_id_mutex);
 }
 
+// 从事务ID池中获取一个ID
 int32_t dns_transaction_id_get()
 {
     pthread_mutex_lock(&transaction_id_mutex);
@@ -41,6 +42,7 @@ int32_t dns_transaction_id_get()
     return id;
 }
 
+// 将事务ID放回事务ID池中
 void dns_transaction_id_put(uint16_t id)
 {
     pthread_mutex_lock(&transaction_id_mutex);
@@ -67,6 +69,7 @@ inline uint8_t dns_transaction_id_get_state(uint16_t id)
     return transaction_id_state[id];
 }
 
+// 处理DNS请求的线程
 void dns_handle_q(dns_handle_arg_t* arg)
 {
     SOCKADDR_IN sock_in = arg->sock_in;
@@ -83,8 +86,8 @@ void dns_handle_q(dns_handle_arg_t* arg)
     uint16_t ori_id = msg.header.id;
     // printf("\ntransaction_id get: %d, ori_id: %d\n", transaction_id, ori_id);
 
-    dns_message_t msg_send;
-    // msg_send = msg;
+    //
+    dns_message_t msg_send;    
     dns_message_copy(&msg_send, &msg);
 
     msg_send.header.flags |= FLAG_QR;
@@ -237,6 +240,7 @@ void dns_handle_q(dns_handle_arg_t* arg)
 
 }
 
+// 等待上游DNS服务器的响应
 void wait_for_upstream(transaction_arg_t* arg)
 {
     dns_message_t msg = arg->msg;
@@ -277,7 +281,7 @@ void wait_for_upstream(transaction_arg_t* arg)
     dns_transaction_id_put(transaction_id);
 }
 
-
+// 处理DNS响应的线程
 void dns_handle_r(dns_handle_arg_t* arg)
 {
     // SOCKET* s = arg->s;
@@ -291,6 +295,7 @@ void dns_handle_r(dns_handle_arg_t* arg)
     dns_transaction_id_set_state(msg.header.id, 1);
 }
 
+// 向上游DNS服务器发送DNS请求
 void dns_question_upstream(dns_message_t* msg)
 {
     SOCKADDR_IN sock_in;
