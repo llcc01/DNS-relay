@@ -255,8 +255,8 @@ void protocol_send(SOCKET s, const SOCKADDR_IN* sock_in, const dns_message_t* ms
     // send the message to the client
     // printf("protocol_send\n");
 
-    uint8_t buffer[BUF_MAX_SIZE];
-    // uint8_t* buffer = malloc(BUF_MAX_SIZE);
+    // uint8_t buffer[BUF_MAX_SIZE];
+    uint8_t* buffer = malloc(BUF_MAX_SIZE);
     size_t buffer_size;
 
     // LARGE_INTEGER start, end, freq;
@@ -271,7 +271,7 @@ void protocol_send(SOCKET s, const SOCKADDR_IN* sock_in, const dns_message_t* ms
     // QueryPerformanceCounter(&start);
 
     int res = sendto(s, (char*)buffer, buffer_size, 0, (SOCKADDR*)sock_in, sizeof(*sock_in));
-    // free(buffer);
+    free(buffer);
     if (res <= 0)
     {
         printf("sendto() failed. %d\n", WSAGetLastError());
@@ -298,13 +298,13 @@ void protocol_recv(SOCKET s, SOCKADDR_IN* sock_in, dns_message_t* msg)
 
     int sock_in_size = sizeof(*sock_in);
 
-    uint8_t buffer[BUF_MAX_SIZE];
-    // uint8_t* buffer = malloc(BUF_MAX_SIZE);
+    // uint8_t buffer[BUF_MAX_SIZE];
+    uint8_t* buffer = malloc(BUF_MAX_SIZE);
 
     int res = recvfrom(s, (char*)buffer, BUF_MAX_SIZE, 0, (SOCKADDR*)sock_in, &sock_in_size);
     if (res <= 0)
     {
-        // free(buffer);
+        free(buffer);
         printf("recvfrom() failed. %d\n", WSAGetLastError());
         closesocket(s);
 #ifdef _WIN32
@@ -326,7 +326,7 @@ void protocol_recv(SOCKET s, SOCKADDR_IN* sock_in, dns_message_t* msg)
         // printf("\n");
 
         dns_message_from_buf(buffer, res, msg);
-        // free(buffer);
+        free(buffer);
     }
 }
 

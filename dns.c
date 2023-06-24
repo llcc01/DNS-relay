@@ -68,6 +68,11 @@ void dns_handle_q(dns_handle_arg_t* arg)
     uint8_t banned = 0;
 
     // QueryPerformanceCounter(&time_arr[1]);
+    if (msg_send.header.qdcount!= 1)
+    {
+        // printf("qdcount != 1\n");
+        PANIC("Error: dns_handle_q: qdcount != 1");
+    }
 
     // 当有一个本地查询失败时，就不再进行本地查询
     for (int i = 0; i < msg_send.header.qdcount; i++)
@@ -152,7 +157,7 @@ void dns_handle_q(dns_handle_arg_t* arg)
         // dns_header_set_flags(&(msg_send.header), msg_send.header.flags, 0, RCODE_NAME_ERROR);
         // break;
 
-        
+
         // database_lookup(question.name, msg_send.answers);
         // bst_id_t db_id = database_lookup(&question);
         bst_id_t db_id = database_bst_lookup(&question);
@@ -210,8 +215,8 @@ void dns_handle_q(dns_handle_arg_t* arg)
         protocol_send(s, &sock_in, &msg_send);
 
         dns_message_free(&msg);
-        dns_message_free(&msg_send);
     }
+    dns_message_free(&msg_send);
 
     // QueryPerformanceCounter(&time_arr[3]);
 
