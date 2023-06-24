@@ -11,11 +11,13 @@ transaction_arg_t transactions[65536];
 pthread_mutex_t transaction_id_mutex;
 dns_message_t dns_msg_cache[65536] = { 0 };
 
+// ID锁初始化
 void dns_transaction_id_init()
 {
     pthread_mutex_init(&transaction_id_mutex, NULL);
 }
 
+// id锁销毁
 void dns_transaction_id_free()
 {
     pthread_mutex_destroy(&transaction_id_mutex);
@@ -30,6 +32,7 @@ int32_t dns_transaction_id_get()
     return transaction_id_base;
 }
 
+// 设置会话信息
 inline void dns_transaction_set(const transaction_arg_t* arg)
 {
     pthread_mutex_lock(&transaction_id_mutex);
@@ -37,6 +40,7 @@ inline void dns_transaction_set(const transaction_arg_t* arg)
     pthread_mutex_unlock(&transaction_id_mutex);
 }
 
+// 获取会话信息
 inline transaction_arg_t dns_transaction_get(uint16_t id)
 {
     return transactions[id];
@@ -68,14 +72,14 @@ void dns_handle_q(dns_handle_arg_t* arg)
     uint8_t banned = 0;
 
     // QueryPerformanceCounter(&time_arr[1]);
-    if (msg_send.header.qdcount!= 1)
-    {
-        // printf("qdcount != 1\n");
-        PANIC("Error: dns_handle_q: qdcount != 1");
-    }
+    // if (msg_send.header.qdcount!= 1)
+    // {
+    //     // printf("qdcount != 1\n");
+    //     PANIC("Error: dns_handle_q: qdcount != 1");
+    // }
 
     // 当有一个本地查询失败时，就不再进行本地查询
-    for (int i = 0; i < msg_send.header.qdcount; i++)
+    for (int i = 0; i < 1 && msg_send.header.qdcount == 1; i++)
     {
         // banned = 1;
         // break;
@@ -142,21 +146,6 @@ void dns_handle_q(dns_handle_arg_t* arg)
             dns_record_copy(msg_send.answers, &local_name_rec);
             break;
         }
-
-        // if (question.type != TYPE_A || question.class != CLASS_IN)
-        // {
-        //     msg_send.header.ancount = 0;
-        //     break;
-        // }
-
-
-        // test
-        // msg_send.header.ancount = 0;
-        // msg_send.answers = NULL;
-        // banned = 1;
-        // dns_header_set_flags(&(msg_send.header), msg_send.header.flags, 0, RCODE_NAME_ERROR);
-        // break;
-
 
         // database_lookup(question.name, msg_send.answers);
         // bst_id_t db_id = database_lookup(&question);

@@ -47,62 +47,25 @@ void monitor()
 {
     while (1)
     {
-        printf("\ntransaction_id_base: %d\n", transaction_id_base);
+        LOG_INFO("transaction_id_base: %d", transaction_id_base);
         Sleep(1000);
     }
 }
 
-int main() {
-    printf("Hello, from DNS relay!\n");
+int main()
+{
+    logger_set_level(LOG_LEVEL_INFO);
+
+    LOG_INFO("Hello, from DNS relay!");
 
     database_init();
     database_load(FILENAME);
 
     dns_transaction_id_init();
 
-    // dns_record_t record;
-    // database_lookup("test1", &record);
-    // dns_record_print(&record);
-
     protocol_init(&s, DNS_LISTEN_PORT);
     protocol_init(&s_upstream, DNS_UPSTREAM_LISTEN_PORT);
 
-
-    // dns_message_t msg;
-    // msg.header.id = 0x11cc;
-    // dns_header_set_flags(&msg.header, 0, 0, 0);
-    // msg.header.qdcount = 1;
-    // msg.header.ancount = 0;
-    // msg.header.nscount = 0;
-    // msg.header.arcount = 0;
-
-    // msg.questions = malloc(sizeof(dns_question_t));
-    // char name[256];
-    // name_to_qname("www.bupt.edu.cn", name);
-
-    // msg.questions[0].name = malloc(strlen(name) + 1);
-    // strcpy(msg.questions[0].name, name);
-
-    // msg.questions[0].type = TYPE_A;
-    // msg.questions[0].class = CLASS_IN;
-
-    // msg.answers = NULL;
-    // msg.authorities = NULL;
-    // msg.additionals = NULL;
-
-    // SOCKADDR_IN sock_in;
-    // sock_in.sin_family = AF_INET;
-    // sock_in.sin_port = htons(53);
-    // sock_in.sin_addr.s_addr = inet_addr("10.3.9.44");
-    // protocol_send(&s, &sock_in, &msg);
-    // dns_message_free(&msg);
-
-    // SOCKADDR_IN from_addr;
-    // protocol_recv(&s, &from_addr, &msg);
-    // for (int i = 0; i < msg.header.ancount; i++)
-    // {
-    //     dns_record_print(&msg.answers[i]);
-    // }
 
     pthread_t listen_upstream_thread;
     pthread_t monitor_thread;

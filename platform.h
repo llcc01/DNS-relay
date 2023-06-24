@@ -12,6 +12,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+#include "logger.h"
 
 #define BST_INVALID_ID -1
 typedef int64_t bst_id_t;

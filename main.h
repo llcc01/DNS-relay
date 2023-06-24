@@ -5,7 +5,6 @@
 #include <time.h>
 // #include <windows.h>
 #include "platform.h"
-
 #include "protocol.h"
 
 extern SOCKET s;

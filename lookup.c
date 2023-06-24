@@ -77,6 +77,7 @@ bst_id_t database_lookup_helper(bst_node_t* root, const dns_question_t* question
     }
 }
 
+// 数据库二叉树查找
 bst_id_t database_bst_lookup(const dns_question_t* question)
 {
     return database_lookup_helper(database_bst, question);
