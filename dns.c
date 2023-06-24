@@ -2,6 +2,9 @@
 #include <pthread.h>
 #include <stdio.h>
 #include "main.h"
+#include "database.h"
+#include "protocol.h"
+#include "lookup.h"
 
 uint16_t transaction_id_base = 0;
 transaction_arg_t transactions[65536];
@@ -149,17 +152,18 @@ void dns_handle_q(dns_handle_arg_t* arg)
         // dns_header_set_flags(&(msg_send.header), msg_send.header.flags, 0, RCODE_NAME_ERROR);
         // break;
 
-        msg_send.header.ancount = 1;
-        msg_send.answers = malloc(sizeof(dns_record_t));
-        database_lookup(question.name, msg_send.answers);
-        if (msg_send.answers[0].type == 0)
+        
+        // database_lookup(question.name, msg_send.answers);
+        // bst_id_t db_id = database_lookup(&question);
+        bst_id_t db_id = database_bst_lookup(&question);
+        if (db_id == BST_INVALID_ID)
         {
-            dns_record_free(&msg_send.answers[0]);
-            free(msg_send.answers);
-            msg_send.answers = NULL;
-            msg_send.header.ancount = 0;
             break;
         }
+
+        msg_send.header.ancount = 1;
+        msg_send.answers = malloc(sizeof(dns_record_t));
+        database_get_record(db_id, msg_send.answers);
 
         if (*(msg_send.answers[0].rdata) == 0)
         {
@@ -239,7 +243,7 @@ void dns_handle_r(dns_handle_arg_t* arg)
     protocol_send(s, &sock_in, &upstream_msg);
 
     dns_message_free(&msg);
-    // dns_message_free(&upstream_msg);
+    dns_message_free(&upstream_msg);
 }
 
 // 向上游DNS服务器发送DNS请求

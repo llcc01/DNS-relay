@@ -9,9 +9,10 @@ add_executable(DNS-relay
     protocol.c
     database.c
     dns.c
+    lookup.c
 )
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3  -Wall")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3  -Wall -Werror")
 
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/dnsrelay.txt
     DESTINATION ${CMAKE_CURRENT_BINARY_DIR})

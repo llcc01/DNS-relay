@@ -20,6 +20,12 @@ void listen_upstream()
         // 阻塞等待上游服务器的响应
         protocol_recv(s_upstream, &from_addr, &msg);
 
+        if (msg.header.qdcount == 0 && msg.header.ancount == 0 && msg.header.nscount == 0 && msg.header.arcount == 0)
+        {
+            dns_message_free(&msg);
+            continue;
+        }
+
         if (!(msg.header.flags & FLAG_QR) || from_addr.sin_addr.s_addr != inet_addr(DNS_UPSTREAM_SERVER))
         {
             dns_message_free(&msg);
@@ -115,6 +121,12 @@ int main() {
 
         // 阻塞等待客户端的请求
         protocol_recv(s, &from_addr, &msg);
+
+        if (msg.header.qdcount == 0 && msg.header.ancount == 0 && msg.header.nscount == 0 && msg.header.arcount == 0)
+        {
+            dns_message_free(&msg);
+            continue;
+        }
 
         if (msg.header.flags & FLAG_QR)
         {

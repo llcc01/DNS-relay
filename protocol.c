@@ -11,6 +11,194 @@ WSADATA wsaData;
 
 #endif
 
+void dns_record_print(const dns_record_t* record)
+{
+    // print the record
+    printf("----------------\n");
+    printf("dns_record_print\n");
+    char name[NAME_MAX_SIZE];
+    qname_to_name(record->name, name);
+    printf("name: %s\n", name);
+    printf("type: %d\n", record->type);
+    printf("class: %d\n", record->class);
+    printf("ttl: %d\n", record->ttl);
+    printf("rdlength: %d\n", record->rdlength);
+    printf("rdata: ");
+    if (record->type == TYPE_A)
+    {
+        printf("A %d.%d.%d.%d\n", record->rdata[0], record->rdata[1], record->rdata[2], record->rdata[3]);
+    }
+    else if (record->type == TYPE_NS)
+    {
+        printf("NS %s\n", record->rdata);
+    }
+    else if (record->type == TYPE_CNAME)
+    {
+        char cname[NAME_MAX_SIZE];
+        qname_to_name((char*)(record->rdata), cname);
+        printf("CNAME %s\n", cname);
+    }
+    else if (record->type == TYPE_PTR)
+    {
+        printf("PTR %s\n", record->rdata);
+    }
+    else if (record->type == TYPE_MX)
+    {
+        printf("MX %d %s\n", record->rdata[0] << 8 | record->rdata[1], record->rdata + 2);
+    }
+    else if (record->type == TYPE_AAAA)
+    {
+        printf("AAAA ");
+        printf("%02x%02x", record->rdata[0], record->rdata[1]);
+        for (int i = 1; i < record->rdlength; i += 2)
+        {
+            printf(":%02x%02x", record->rdata[i], record->rdata[i + 1]);
+        }
+        printf("\n");
+    }
+    else
+    {
+        printf("rdata: ");
+        for (int i = 0; i < record->rdlength; i++)
+        {
+            printf("%02x ", record->rdata[i]);
+        }
+        printf("\n");
+    }
+    printf("----------------\n");
+}
+
+void dns_record_to_buf(const dns_record_t* record, uint8_t* buf, size_t* len, size_t offset, size_t name_offset, size_t* cname_offset)
+{
+    // convert the record to the buffer
+    // printf("dns_record_to_buf\n");
+
+    size_t ori_offset = offset;
+
+    // compress
+    if (strcmp((char*)&(buf[name_offset]), record->name) == 0)
+    {
+        // printf("compress\n");
+        uint16_t pointer = name_offset;
+        pointer |= 0xc000;
+        buf[offset++] = pointer >> 8;
+        buf[offset++] = pointer & 0xFF;
+    }
+    else if (*cname_offset != 0 && strcmp((char*)&(buf[*cname_offset]), record->name) == 0)
+    {
+        // printf("compress cname\n");
+        uint16_t pointer = *cname_offset;
+        pointer |= 0xc000;
+        buf[offset++] = pointer >> 8;
+        buf[offset++] = pointer & 0xFF;
+    }
+    else
+    {
+        // printf("not compress\n");
+        size_t name_len = strlen(record->name);
+        memcpy(buf + offset, record->name, name_len);
+        offset += name_len;
+        buf[offset++] = 0;
+    }
+
+
+    buf[offset++] = record->type >> 8;
+    buf[offset++] = record->type & 0xFF;
+    buf[offset++] = record->class >> 8;
+    buf[offset++] = record->class & 0xFF;
+    buf[offset++] = record->ttl >> 24;
+    buf[offset++] = (record->ttl >> 16) & 0xFF;
+    buf[offset++] = (record->ttl >> 8) & 0xFF;
+    buf[offset++] = record->ttl & 0xFF;
+    buf[offset++] = record->rdlength >> 8;
+    buf[offset++] = record->rdlength & 0xFF;
+    if (record->type == TYPE_CNAME)
+    {
+        *cname_offset = offset;
+    }
+    memcpy(buf + offset, record->rdata, record->rdlength);
+    offset += record->rdlength;
+    *len = offset - ori_offset;
+}
+
+void dns_record_from_buf(const uint8_t* buf, size_t buf_len, size_t* len, size_t offset, dns_record_t* record)
+{
+    // convert the buffer to the record
+    // printf("dns_record_from_buf\n");
+    if (offset >= buf_len)
+    {
+        PANIC("Error: buffer is too short");
+    }
+    size_t ori_offset = offset;
+    size_t compress_name_len = 0;
+    char name[NAME_MAX_SIZE];
+
+    decompress_name(buf, buf_len, offset, &compress_name_len, name);
+    size_t name_len = strlen(name);
+    record->name = malloc(name_len + 1);
+    memcpy(record->name, name, name_len + 1);
+    offset += compress_name_len;
+
+    if (offset + 10 >= buf_len)
+    {
+        PANIC("Error: buffer is too short");
+    }
+    record->type = (uint16_t)buf[offset++] << 8;
+    record->type |= buf[offset++];
+    record->class = (uint16_t)buf[offset++] << 8;
+    record->class |= buf[offset++];
+    record->ttl = (uint32_t)buf[offset++] << 24;
+    record->ttl |= (uint32_t)buf[offset++] << 16;
+    record->ttl |= (uint32_t)buf[offset++] << 8;
+    record->ttl |= buf[offset++];
+    record->rdlength = (uint16_t)buf[offset++] << 8;
+    record->rdlength |= buf[offset++];
+    if (offset + record->rdlength > buf_len)
+    {
+        PANIC("Error: buffer is too short");
+    }
+    if (record->type == TYPE_CNAME)
+    {
+        decompress_name(buf, buf_len, offset, &compress_name_len, name);
+        size_t rd_real_len = strlen(name) + 1;
+        record->rdata = malloc(rd_real_len);
+        memcpy(record->rdata, name, rd_real_len);
+
+        offset += compress_name_len;
+        record->rdlength = rd_real_len;
+    }
+    else
+    {
+        record->rdata = malloc(record->rdlength);
+        memcpy(record->rdata, buf + offset, record->rdlength);
+        offset += record->rdlength;
+    }
+    *len = offset - ori_offset;
+}
+
+void dns_record_free(dns_record_t* record)
+{
+    // free the record
+    // printf("dns_record_free\n");
+    free(record->name);
+    free(record->rdata);
+}
+
+// 深拷贝记录
+void dns_record_copy(dns_record_t* dst, const dns_record_t* src)
+{
+    // copy the record
+    // printf("dns_record_copy\n");
+    dst->name = malloc(strlen(src->name) + 1);
+    strcpy(dst->name, src->name);
+    dst->type = src->type;
+    dst->class = src->class;
+    dst->ttl = src->ttl;
+    dst->rdlength = src->rdlength;
+    dst->rdata = malloc(src->rdlength);
+    memcpy(dst->rdata, src->rdata, src->rdlength);
+}
+
 // 协议初始化
 void protocol_init(SOCKET* s, uint16_t port)
 {
@@ -67,18 +255,23 @@ void protocol_send(SOCKET s, const SOCKADDR_IN* sock_in, const dns_message_t* ms
     // send the message to the client
     // printf("protocol_send\n");
 
-    // uint8_t buffer[BUF_MAX_SIZE];
-    uint8_t* buffer = malloc(BUF_MAX_SIZE);
+    uint8_t buffer[BUF_MAX_SIZE];
+    // uint8_t* buffer = malloc(BUF_MAX_SIZE);
     size_t buffer_size;
 
     // LARGE_INTEGER start, end, freq;
 
     dns_message_to_buf(msg, buffer, &buffer_size);
 
+    if (buffer_size > 512)
+    {
+        printf("warning: send buffer_size: %lld\n", buffer_size);
+    }
+
     // QueryPerformanceCounter(&start);
 
     int res = sendto(s, (char*)buffer, buffer_size, 0, (SOCKADDR*)sock_in, sizeof(*sock_in));
-    free(buffer);
+    // free(buffer);
     if (res <= 0)
     {
         printf("sendto() failed. %d\n", WSAGetLastError());
@@ -105,13 +298,13 @@ void protocol_recv(SOCKET s, SOCKADDR_IN* sock_in, dns_message_t* msg)
 
     int sock_in_size = sizeof(*sock_in);
 
-    // uint8_t buffer[BUF_MAX_SIZE];
-    uint8_t* buffer = malloc(BUF_MAX_SIZE);
+    uint8_t buffer[BUF_MAX_SIZE];
+    // uint8_t* buffer = malloc(BUF_MAX_SIZE);
 
     int res = recvfrom(s, (char*)buffer, BUF_MAX_SIZE, 0, (SOCKADDR*)sock_in, &sock_in_size);
     if (res <= 0)
     {
-        free(buffer);
+        // free(buffer);
         printf("recvfrom() failed. %d\n", WSAGetLastError());
         closesocket(s);
 #ifdef _WIN32
@@ -121,6 +314,10 @@ void protocol_recv(SOCKET s, SOCKADDR_IN* sock_in, dns_message_t* msg)
     }
     else
     {
+        if (res > 512)
+        {
+            printf("warning: recv size: %d\n", res);
+        }
         // printf("recvfrom() recv %d bytes \n", res);
 
         // for (size_t i = 0; i < res; i++) {
@@ -129,7 +326,7 @@ void protocol_recv(SOCKET s, SOCKADDR_IN* sock_in, dns_message_t* msg)
         // printf("\n");
 
         dns_message_from_buf(buffer, res, msg);
-        free(buffer);
+        // free(buffer);
     }
 }
 
@@ -198,6 +395,8 @@ void dns_message_to_buf(const dns_message_t* msg, uint8_t* buf, size_t* len)
     // printf("dns_message_to_buf\n");
     size_t offset = 0;
     dns_header_to_buf(&msg->header, buf, &offset);
+    size_t name_offset = offset;
+    size_t cname_offset = 0;
     for (size_t i = 0; i < msg->header.qdcount; i++) {
         size_t question_len;
         dns_question_to_buf(&msg->questions[i], buf + offset, &question_len);
@@ -207,20 +406,20 @@ void dns_message_to_buf(const dns_message_t* msg, uint8_t* buf, size_t* len)
     for (size_t i = 0; i < msg->header.ancount; i++) {
         size_t record_len;
         // dns_record_print(&msg->answers[i]);
-        dns_record_to_buf(&msg->answers[i], buf + offset, &record_len);
+        dns_record_to_buf(&msg->answers[i], buf, &record_len, offset, name_offset, &cname_offset);
         offset += record_len;
     }
 
     for (size_t i = 0; i < msg->header.nscount; i++) {
         size_t record_len;
         // dns_record_print(&msg->authorities[i]);
-        dns_record_to_buf(&msg->authorities[i], buf + offset, &record_len);
+        dns_record_to_buf(&msg->authorities[i], buf, &record_len, offset, name_offset, &cname_offset);
         offset += record_len;
     }
 
     for (size_t i = 0; i < msg->header.arcount; i++) {
         size_t record_len;
-        dns_record_to_buf(&msg->additionals[i], buf + offset, &record_len);
+        dns_record_to_buf(&msg->additionals[i], buf, &record_len, offset, name_offset, &cname_offset);
         offset += record_len;
     }
 
@@ -248,6 +447,17 @@ void dns_message_from_buf(const uint8_t* buf, size_t buf_len, dns_message_t* msg
     //         }
     //     }
     //     printf("\n");
+    // }
+
+    // 异常情况
+    // if (msg->header.qdcount > 2)
+    // {
+    //     printf("Error: qdcount > 2, %d\n", msg->header.qdcount);
+    //     msg->header.qdcount = 0;
+    //     msg->header.ancount = 0;
+    //     msg->header.nscount = 0;
+    //     msg->header.arcount = 0;
+    //     return;
     // }
 
     if (msg->header.qdcount > 0)
@@ -300,14 +510,9 @@ void dns_message_from_buf(const uint8_t* buf, size_t buf_len, dns_message_t* msg
         offset += question_len;
     }
 
-    char name[NAME_MAX_SIZE];
-    qname_to_name(msg->questions[0].name, name);
-    printf("name: %s\n", name);
-    // if (strcmp(name, "border-qd-broadcast.chat.biliapi.com.") == 0)
-    // {
-    //     printf("border-qd-broadcast.chat.biliapi.com.\n");
-    //     int a = 0;
-    // }
+    // char name[NAME_MAX_SIZE];
+    // qname_to_name(msg->questions[0].name, name);
+    // printf("name: %s\n", name);
 
     for (size_t i = 0; i < msg->header.ancount; i++)
     {

@@ -13,6 +13,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define BST_INVALID_ID -1
+typedef int64_t bst_id_t;
+
 #define PANIC(msg,...) { fprintf(stderr, msg "\n%s:%d\n", ##__VA_ARGS__,__FILE__, __LINE__); exit(1); }
 
 
