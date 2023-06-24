@@ -20,7 +20,11 @@ set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
 include(CPack)
 
+if(CMAKE_HOST_SYSTEM_NAME MATCHES "Windows")
+
 target_link_libraries(DNS-relay
   ws2_32
 )
+
+endif()
 

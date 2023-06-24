@@ -46,7 +46,7 @@ void monitor()
     }
 }
 
-int main(int, char**) {
+int main() {
     printf("Hello, from DNS relay!\n");
 
     database_init();
@@ -58,7 +58,7 @@ int main(int, char**) {
     // database_lookup("test1", &record);
     // dns_record_print(&record);
 
-    protocol_init(&s, 53);
+    protocol_init(&s, DNS_LISTEN_PORT);
     protocol_init(&s_upstream, DNS_UPSTREAM_LISTEN_PORT);
 
 
@@ -98,8 +98,10 @@ int main(int, char**) {
     //     dns_record_print(&msg.answers[i]);
     // }
 
-    pthread_create(NULL, NULL, (void* (*)(void*))listen_upstream, NULL);
-    pthread_create(NULL, NULL, (void* (*)(void*))monitor, NULL);
+    pthread_t listen_upstream_thread;
+    pthread_t monitor_thread;
+    pthread_create(&listen_upstream_thread, NULL, (void* (*)(void*))listen_upstream, NULL);
+    pthread_create(&monitor_thread, NULL, (void* (*)(void*))monitor, NULL);
 
     while (1)
     {

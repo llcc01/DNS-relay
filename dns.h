@@ -17,8 +17,9 @@ typedef struct {
     time_t start_time;  // 开始时间
 } transaction_arg_t;
 
-#define DNS_UPSTREAM_SERVER "10.3.9.4"
+#define DNS_UPSTREAM_SERVER "10.3.9.44"
 #define DNS_UPSTREAM_TIMEOUT 500
+#define DNS_LISTEN_PORT 1053
 #define DNS_UPSTREAM_LISTEN_PORT 12345
 
 extern uint16_t transaction_id_base;

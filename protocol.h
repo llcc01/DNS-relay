@@ -3,12 +3,24 @@
 
 #include <stdint.h>
 #include "database.h"
+#include "platform.h"
 
 #ifdef _WIN32
 #include <winsock2.h>
 #elif __linux__
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
+#include <errno.h> 
+typedef int SOCKET;
+#define INVALID_SOCKET -1
+typedef struct sockaddr_in SOCKADDR_IN;
+typedef struct sockaddr SOCKADDR;
+typedef struct in_addr IN_ADDR;
+#define closesocket(s) close(s)
+#define WSAGetLastError() errno
+#define SOCKET_ERROR -1
+
 #endif
 
 typedef struct {

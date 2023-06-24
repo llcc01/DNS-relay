@@ -3,11 +3,12 @@
 
 #include <stdio.h>
 #include <time.h>
-#include <windows.h>
+// #include <windows.h>
+#include "platform.h"
+
+#include "protocol.h"
 
 extern SOCKET s;
 extern SOCKET s_upstream;
-
-#define PANIC(msg,...) { fprintf(stderr, msg "\n%s:%d\n", ##__VA_ARGS__,__FILE__, __LINE__); exit(1); }
 
 #endif

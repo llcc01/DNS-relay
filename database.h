@@ -1,7 +1,7 @@
 #ifndef DATABASE_H__
 #define DATABASE_H__
 
-#include <stdint.h>
+#include "platform.h"
 
 #define FILENAME "dnsrelay.txt"
 

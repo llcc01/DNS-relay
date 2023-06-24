@@ -239,7 +239,7 @@ void dns_handle_r(dns_handle_arg_t* arg)
     protocol_send(s, &sock_in, &upstream_msg);
 
     dns_message_free(&msg);
-    dns_message_free(&upstream_msg);
+    // dns_message_free(&upstream_msg);
 }
 
 // 向上游DNS服务器发送DNS请求

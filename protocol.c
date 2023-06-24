@@ -4,7 +4,12 @@
 
 #include "main.h"
 
+#ifdef _WIN32
 WSADATA wsaData;
+#elif __linux__
+
+
+#endif
 
 // 协议初始化
 void protocol_init(SOCKET* s, uint16_t port)
@@ -30,23 +35,28 @@ void protocol_init(SOCKET* s, uint16_t port)
     BOOL bNewBehavior = FALSE;
     DWORD dwBytesReturned = 0;
     WSAIoctl(*s, SIO_UDP_CONNRESET, &bNewBehavior, sizeof(bNewBehavior), NULL, 0, &dwBytesReturned, NULL, NULL);
+#elif __linux__
+    // UDP
+    * s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if (*s == -1) {
+        PANIC("Error at socket()");
+    }
+
+#endif
 
     SOCKADDR_IN sock_in;
     sock_in.sin_family = AF_INET;
     sock_in.sin_port = htons(port);
     sock_in.sin_addr.s_addr = INADDR_ANY;
 
-    if (bind(*s, (SOCKADDR*)&sock_in, sizeof(sock_in)) == SOCKET_ERROR) {
-        printf("bind() failed.\n");
+    if (bind(*s, (SOCKADDR*)&sock_in, sizeof(sock_in)) < 0) {
+        printf("bind() failed. %d\n", WSAGetLastError());
         closesocket(*s);
+#ifdef _WIN32
         WSACleanup();
+#endif
         PANIC("Error at bind()");
     }
-#elif __linux__
-    // UDP
-    *s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-
-#endif
 
     printf("bind() is OK!\n");
 }
@@ -73,7 +83,9 @@ void protocol_send(SOCKET s, const SOCKADDR_IN* sock_in, const dns_message_t* ms
     {
         printf("sendto() failed. %d\n", WSAGetLastError());
         closesocket(s);
+#ifdef _WIN32
         WSACleanup();
+#endif
         PANIC("Error at sendto()");
     }
 
@@ -102,7 +114,9 @@ void protocol_recv(SOCKET s, SOCKADDR_IN* sock_in, dns_message_t* msg)
         free(buffer);
         printf("recvfrom() failed. %d\n", WSAGetLastError());
         closesocket(s);
+#ifdef _WIN32
         WSACleanup();
+#endif
         PANIC("Error at recvfrom()");
     }
     else
@@ -285,6 +299,15 @@ void dns_message_from_buf(const uint8_t* buf, size_t buf_len, dns_message_t* msg
         dns_question_from_buf(buf, buf_len, &question_len, offset, &msg->questions[i]);
         offset += question_len;
     }
+
+    char name[NAME_MAX_SIZE];
+    qname_to_name(msg->questions[0].name, name);
+    printf("name: %s\n", name);
+    // if (strcmp(name, "border-qd-broadcast.chat.biliapi.com.") == 0)
+    // {
+    //     printf("border-qd-broadcast.chat.biliapi.com.\n");
+    //     int a = 0;
+    // }
 
     for (size_t i = 0; i < msg->header.ancount; i++)
     {
