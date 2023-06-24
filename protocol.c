@@ -204,7 +204,7 @@ void protocol_init(SOCKET* s, uint16_t port)
 {
 
     // initialize the protocol
-    printf("protocol_init\n");
+    LOG_INFO("protocol_init");
 #ifdef _WIN32
     int iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
     if (iResult != NO_ERROR) {
@@ -214,7 +214,7 @@ void protocol_init(SOCKET* s, uint16_t port)
     // UDP
     *s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if (*s == INVALID_SOCKET) {
-        printf("Error at socket(): %d\n", WSAGetLastError());
+        LOG_ERROR("Error at socket(): %d", WSAGetLastError());
         WSACleanup();
         PANIC("Error at socket()");
     }
@@ -238,7 +238,7 @@ void protocol_init(SOCKET* s, uint16_t port)
     sock_in.sin_addr.s_addr = INADDR_ANY;
 
     if (bind(*s, (SOCKADDR*)&sock_in, sizeof(sock_in)) < 0) {
-        printf("bind() failed. %d\n", WSAGetLastError());
+        LOG_ERROR("bind(%d) failed. %d", port, WSAGetLastError());
         closesocket(*s);
 #ifdef _WIN32
         WSACleanup();
@@ -246,7 +246,7 @@ void protocol_init(SOCKET* s, uint16_t port)
         PANIC("Error at bind()");
     }
 
-    printf("bind() is OK!\n");
+    LOG_INFO("bind(%d) is OK!", port);
 }
 
 // 协议发送消息
@@ -265,7 +265,7 @@ void protocol_send(SOCKET s, const SOCKADDR_IN* sock_in, const dns_message_t* ms
 
     if (buffer_size > 512)
     {
-        printf("warning: send buffer_size: %lld\n", buffer_size);
+        LOG_WARN("send buffer_size: %lld", buffer_size);
     }
 
     // QueryPerformanceCounter(&start);
@@ -274,7 +274,7 @@ void protocol_send(SOCKET s, const SOCKADDR_IN* sock_in, const dns_message_t* ms
     free(buffer);
     if (res <= 0)
     {
-        printf("sendto() failed. %d\n", WSAGetLastError());
+        LOG_ERROR("sendto() failed. %d", WSAGetLastError());
         closesocket(s);
 #ifdef _WIN32
         WSACleanup();
@@ -305,7 +305,7 @@ void protocol_recv(SOCKET s, SOCKADDR_IN* sock_in, dns_message_t* msg)
     if (res <= 0)
     {
         free(buffer);
-        printf("recvfrom() failed. %d\n", WSAGetLastError());
+        LOG_ERROR("recvfrom() failed. %d", WSAGetLastError());
         closesocket(s);
 #ifdef _WIN32
         WSACleanup();
@@ -316,7 +316,7 @@ void protocol_recv(SOCKET s, SOCKADDR_IN* sock_in, dns_message_t* msg)
     {
         if (res > 512)
         {
-            printf("warning: recv size: %d\n", res);
+            LOG_WARN("warning: recv size: %d", res);
         }
         // printf("recvfrom() recv %d bytes \n", res);
 
