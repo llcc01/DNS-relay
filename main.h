@@ -9,5 +9,6 @@
 
 extern SOCKET s;
 extern SOCKET s_upstream;
+extern uint8_t* handle_thread_states;
 
 #endif

@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <pthread.h>
+#include <signal.h>
 #include "database.h"
 #include "protocol.h"
 #include "dns.h"
@@ -38,7 +39,9 @@ void listen_upstream()
 
         dns_handle_r(arg);
 
-        // pthread_create(NULL, NULL, (void* (*)(void*))dns_handle_r, (void*)arg);
+        // pthread_t thread_id;
+        // pthread_create(&thread_id, NULL, (void* (*)(void*))dns_handle_r, (void*)arg);
+        // pthread_detach(thread_id);
     }
 }
 
@@ -104,8 +107,10 @@ int main()
         // 使用单线程处理DNS请求，多线程效率较低？
         dns_handle_q(arg);
 
-        // pthread_create(NULL, NULL, (void* (*)(void*))dns_handle_q, (void*)arg);
-    }
+    //     pthread_t thread_id;
+    //     pthread_create(&thread_id, NULL, (void* (*)(void*))dns_handle_q, (void*)arg);
+    //     pthread_detach(thread_id);
+    // }
 
 
     return 0;
