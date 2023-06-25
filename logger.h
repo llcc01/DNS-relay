@@ -16,7 +16,7 @@ extern int log_level;
 #define LOG_DEBUG(...) do { \
     if (LOG_LEVEL <= LOG_LEVEL_DEBUG) { \
         printf("[DEBUG] "); \
-        printf("%ld ",time(NULL)); \
+        printf("%lld ",(long long int)time(NULL)); \
         printf(__VA_ARGS__); \
         printf("\n"); \
     } \
@@ -25,7 +25,7 @@ extern int log_level;
 #define LOG_INFO(...) do { \
     if (LOG_LEVEL <= LOG_LEVEL_INFO) { \
         printf("[INFO] "); \
-        printf("%ld ",time(NULL)); \
+        printf("%lld ",(long long int)time(NULL)); \
         printf(__VA_ARGS__); \
         printf("\n"); \
     } \
@@ -34,7 +34,7 @@ extern int log_level;
 #define LOG_WARN(...) do { \
     if (LOG_LEVEL <= LOG_LEVEL_WARN) { \
         printf("[WARN] "); \
-        printf("%ld ",time(NULL)); \
+        printf("%lld ",(long long int)time(NULL)); \
         printf(__VA_ARGS__); \
         printf("\n"); \
     } \
@@ -43,7 +43,7 @@ extern int log_level;
 #define LOG_ERROR(...) do { \
     if (LOG_LEVEL <= LOG_LEVEL_ERROR) { \
         printf("[ERROR] "); \
-        printf("%ld ",time(NULL)); \
+        printf("%lld ",(long long int)time(NULL)); \
         printf(__VA_ARGS__); \
         printf("\n"); \
     } \
