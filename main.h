@@ -7,7 +7,7 @@
 #include "platform.h"
 #include "protocol.h"
 
-// #define MULTI_THREAD
+#define MULTI_THREAD
 
 #ifdef MULTI_THREAD
 #define THREAD_POOL
@@ -15,7 +15,7 @@
 
 #ifdef THREAD_POOL
 // 2^THREAD_LIMIT
-#define THREAD_LIMIT 4
+#define THREAD_LIMIT 1
 #define THREAD_NUM (1<<THREAD_LIMIT)
 #endif
 

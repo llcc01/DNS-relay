@@ -138,7 +138,7 @@ int main()
         // 线程池
         while (pool_id_is_full())
         {
-            Sleep(1);
+            // Sleep(1);
         }
 
         uint16_t thread_id = pool_id_get();
