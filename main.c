@@ -8,6 +8,7 @@
 
 SOCKET s;
 SOCKET s_upstream;
+size_t request_count = 0;
 
 // 监听上游服务器的线程，读取返回的消息并处理
 void listen_upstream()
@@ -50,7 +51,8 @@ void monitor()
 {
     while (1)
     {
-        LOG_INFO("transaction_id_base: %d", transaction_id_base);
+        LOG_INFO("transaction_id_base: %d,\trequest_count: %zu", transaction_id_base, request_count);
+        request_count = 0;
         Sleep(1000);
     }
 }
@@ -107,9 +109,11 @@ int main()
         // 使用单线程处理DNS请求，多线程效率较低？
         dns_handle_q(arg);
 
-        //     pthread_t thread_id;
-        //     pthread_create(&thread_id, NULL, (void* (*)(void*))dns_handle_q, (void*)arg);
-        //     pthread_detach(thread_id);
+        // pthread_t thread_id;
+        // pthread_create(&thread_id, NULL, (void* (*)(void*))dns_handle_q, (void*)arg);
+        // pthread_detach(thread_id);
+
+        request_count++;
     }
 
 
