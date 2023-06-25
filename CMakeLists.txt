@@ -11,6 +11,7 @@ add_executable(DNS-relay
     dns.c
     lookup.c
     logger.c
+    pool.c
 )
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3  -Wall -Werror")

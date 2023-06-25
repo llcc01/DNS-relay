@@ -5,10 +5,16 @@
 #include "protocol.h"
 #include "dns.h"
 #include "time.h"
+#include "pool.h"
+#include "main.h"
 
 SOCKET s;
 SOCKET s_upstream;
 size_t request_count = 0;
+
+#ifdef THREAD_POOL
+pthread_t threads[THREAD_NUM];
+#endif
 
 // 监听上游服务器的线程，读取返回的消息并处理
 void listen_upstream()
@@ -51,7 +57,11 @@ void monitor()
 {
     while (1)
     {
+#ifdef THREAD_POOL
+        LOG_INFO("transaction_id_base: %d,\trequest_count: %zu,\tpool_id_count: %d", transaction_id_base, request_count, pool_id_count);
+#else
         LOG_INFO("transaction_id_base: %d,\trequest_count: %zu", transaction_id_base, request_count);
+#endif
         request_count = 0;
         Sleep(1000);
     }
@@ -63,6 +73,14 @@ int main()
 
     LOG_INFO("Hello, from DNS relay!");
 
+#ifndef MULTI_THREAD
+    LOG_INFO("Single thread mode");
+#elif defined(THREAD_POOL)
+    LOG_INFO("Thread pool mode, THREAD_NUM: %d", THREAD_NUM);
+#else
+    LOG_INFO("Multi thread mode");
+#endif
+
     database_init();
     database_load(FILENAME);
 
@@ -71,11 +89,15 @@ int main()
     protocol_init(&s, DNS_LISTEN_PORT);
     protocol_init(&s_upstream, DNS_UPSTREAM_LISTEN_PORT);
 
+#ifdef THREAD_POOL
+    pool_id_init(THREAD_LIMIT);
+#endif
 
     pthread_t listen_upstream_thread;
     pthread_t monitor_thread;
     pthread_create(&listen_upstream_thread, NULL, (void* (*)(void*))listen_upstream, NULL);
     pthread_create(&monitor_thread, NULL, (void* (*)(void*))monitor, NULL);
+
 
     while (1)
     {
@@ -107,11 +129,32 @@ int main()
         arg->msg = msg;
 
         // 使用单线程处理DNS请求，多线程效率较低？
+
+#ifndef MULTI_THREAD
         dns_handle_q(arg);
 
-        // pthread_t thread_id;
-        // pthread_create(&thread_id, NULL, (void* (*)(void*))dns_handle_q, (void*)arg);
-        // pthread_detach(thread_id);
+#elif defined(THREAD_POOL)
+
+        // 线程池
+        while (pool_id_is_full())
+        {
+            Sleep(1);
+        }
+
+        uint16_t thread_id = pool_id_get();
+        arg->thread_id = thread_id;
+
+        pthread_create(&threads[thread_id], NULL, (void* (*)(void*))dns_handle_q, (void*)arg);
+        pthread_detach(threads[thread_id]);
+
+#else
+        // 多线程
+        pthread_t thread;
+        pthread_create(&thread, NULL, (void* (*)(void*))dns_handle_q, (void*)arg);
+        pthread_detach(thread);
+
+#endif
+
 
         request_count++;
     }

@@ -5,6 +5,7 @@
 #include "database.h"
 #include "protocol.h"
 #include "lookup.h"
+#include "pool.h"
 
 uint16_t transaction_id_base = 0;
 transaction_arg_t transactions[65536];
@@ -51,8 +52,10 @@ void dns_handle_q(dns_handle_arg_t* arg)
 {
     SOCKADDR_IN sock_in = arg->sock_in;
     dns_message_t msg = arg->msg;
+#ifdef THREAD_POOL
+    uint16_t thread_id = arg->thread_id;
+#endif
     free(arg);
-
 
     // size_t time_count = 10;
     // LARGE_INTEGER time_arr[time_count];
@@ -215,6 +218,10 @@ void dns_handle_q(dns_handle_arg_t* arg)
     //     printf("%d ", time_arr[i].QuadPart - time_arr[i - 1].QuadPart);
     // }
     // printf("\n");
+
+#ifdef THREAD_POOL
+    pool_id_put(thread_id);
+#endif
 
 }
 

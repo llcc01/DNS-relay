@@ -7,6 +7,7 @@
 typedef struct {
     SOCKADDR_IN sock_in;
     dns_message_t msg;
+    uint16_t thread_id;
 } dns_handle_arg_t;
 
 typedef struct {
