@@ -15,13 +15,15 @@ typedef struct {
 } database_t;
 
 extern dns_record_t local_name_rec;
+extern database_t database;
 
-void database_init(void);
-void database_load(const char* filename);
-void database_add(const dns_message_t* msg);
-void database_get_record(db_id_t id, dns_record_t* record);
-void database_get_msg(db_id_t id, dns_message_t* msg);
-db_id_t database_lookup(const dns_question_t* question);
+void database_init(database_t* db);
+void database_load(database_t* db, const char* filename);
+void database_add(database_t* db, const dns_message_t* msg);
+void database_get_record(const database_t* db, db_id_t id,
+                         dns_record_t* record);
+void database_get_records(const database_t* db, db_id_t id, dns_message_t* msg);
+void database_lookup_all(dns_message_t* msg);
 void database_free(void);
 
 #endif

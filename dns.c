@@ -3,6 +3,7 @@
 #include <pthread.h>
 #include <stdio.h>
 
+#include "cache.h"
 #include "database.h"
 #include "lookup.h"
 #include "main.h"
@@ -12,7 +13,6 @@
 uint16_t transaction_id_base = 0;
 transaction_arg_t transactions[65536];
 pthread_mutex_t transaction_id_mutex;
-dns_message_t dns_msg_cache[65536] = {0};
 
 // ID锁初始化
 void dns_transaction_id_init() {
@@ -143,14 +143,10 @@ void dns_handle_q(dns_handle_arg_t* arg) {
 
     // database_lookup(question.name, msg_send.answers);
     // bst_id_t db_id = database_lookup(&question);
-    db_id_t db_id = database_bst_lookup(&question);
-    if (db_id == BST_INVALID_ID) {
+    database_lookup_all(&msg_send);
+    if (msg_send.header.ancount == 0) {
       break;
     }
-
-    msg_send.header.ancount = 1;
-    msg_send.answers = malloc(sizeof(dns_record_t));
-    database_get_record(db_id, msg_send.answers);
 
     if (*(msg_send.answers[0].rdata) == 0) {
       // printf("banned\n");
@@ -166,7 +162,6 @@ void dns_handle_q(dns_handle_arg_t* arg) {
 
     // dns_record_print(msg_send.answers);
   }
-
   // QueryPerformanceCounter(&time_arr[2]);
 
   if (msg_send.header.ancount == 0 && banned == 0) {
@@ -224,6 +219,8 @@ void dns_handle_r(dns_handle_arg_t* arg) {
 
   upstream_msg.header.id = ori_id;
   protocol_send(s, &sock_in, &upstream_msg);
+
+  cache_put(&upstream_msg);
 
   dns_message_free(&msg);
   dns_message_free(&upstream_msg);

@@ -16,8 +16,8 @@
 
 #include "logger.h"
 
+#define DB_INVALID_ID -1
 
-#define BST_INVALID_ID -1
 typedef int64_t db_id_t;
 
 #define PANIC(msg, ...)                                                  \

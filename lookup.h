@@ -17,9 +17,14 @@ bst_node_t* bst_node_find_min(bst_node_t* node);
 bst_node_t* bst_insert(bst_node_t* root, const dns_question_t* question,
                        db_id_t id);
 bst_node_t* bst_delete(bst_node_t* root, const dns_question_t* question);
-db_id_t database_lookup_helper(bst_node_t* root,
+db_id_t database_lookup_helper(const bst_node_t* root,
                                const dns_question_t* question);
-db_id_t database_bst_lookup(const dns_question_t* question);
+db_id_t database_bst_lookup(const bst_node_t* root,
+                            const dns_question_t* question);
 void database_to_bst(const database_t* db);
+// bst_node_t* cache_index;//cache二叉树的根节点
+
+extern bst_node_t* static_index;
+extern bst_node_t* cache_index;
 
 #endif

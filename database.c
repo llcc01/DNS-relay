@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "cache.h"
 #include "logger.h"
 #include "lookup.h"
 #include "main.h"
@@ -13,10 +14,10 @@ database_t database;
 
 dns_record_t local_name_rec;
 
-void database_init() {
+void database_init(database_t* db) {
   LOG_INFO("database_init");
-  database.msgs = NULL;
-  database.size = 0;
+  db->msgs = NULL;
+  db->size = 0;
 
   char local_name[NAME_MAX_SIZE];
   name_to_qname(LOCAL_NAME, local_name);
@@ -34,39 +35,95 @@ void database_init() {
   memcpy(local_name_rec.rdata, local_domain, local_name_rec.rdlength);
 }
 
-void database_add(const dns_message_t* msg) {
+void database_add(database_t* db, const dns_message_t* msg) {
   // add the record to the database
   LOG_DEBUG("database_add %s %d.%d.%d.%d", msg->answers[0].rdata,
             msg->answers[0].rdata[0], msg->answers[0].rdata[1],
             msg->answers[0].rdata[2], msg->answers[0].rdata[3]);
 
-  database.msgs =
-      realloc(database.msgs, (database.size + 1) * sizeof(dns_message_t));
-  dns_message_copy(&(database.msgs[database.size]), msg);
-  database.msgs[database.size].header.id = database.size;
-
-  database.size++;
+  db->msgs = realloc(db->msgs, (db->size + 1) * sizeof(dns_message_t));
+  dns_message_copy(&(db->msgs[db->size]), msg);
+  db->msgs[db->size].header.id = db->size;
+  db->size++;
 }
 
-void database_get_record(db_id_t id, dns_record_t* record) {
+void database_get_record(const database_t* db, db_id_t id,
+                         dns_record_t* record) {
   // get the record from the database
   LOG_DEBUG("database_get_msg");
-  if (id >= database.size) {
-    PANIC("Error: database_get_msg: id >= database.size");
+  if (id >= db->size) {
+    PANIC("Error: database_get_msg: id >= db->size");
   }
-  dns_record_copy(record, &(database.msgs[id].answers[0]));
+  dns_record_copy(record, &(db->msgs[id].answers[0]));
 }
 
-void database_get_msg(db_id_t id, dns_message_t* msg) {
+void database_get_records(const database_t* db, db_id_t id,
+                          dns_message_t* msg) {
   // get the message from the database
   LOG_DEBUG("database_get_msg");
-  if (id >= database.size) {
-    PANIC("Error: database_get_msg: id >= database.size");
+  if (id >= db->size) {
+    PANIC("Error: database_get_msg: id >= db->size");
   }
-  dns_message_copy(msg, &(database.msgs[id]));
+  dns_message_t* src = &(db->msgs[id]);
+  // msg->header.id = src->header.id;
+
+  // LOG_INFO("record qdcount: %d, ancount: %d, nscount: %d, arcount: %d",
+  //          src->header.qdcount, src->header.ancount, src->header.nscount,
+  //          src->header.arcount);
+
+  if (msg->header.ancount != 0) {
+    for (size_t i = 0; i < msg->header.ancount; i++) {
+      dns_record_free(&(msg->answers[i]));
+    }
+    free(msg->answers);
+  }
+
+  if (msg->header.nscount != 0) {
+    for (size_t i = 0; i < msg->header.nscount; i++) {
+      dns_record_free(&(msg->authorities[i]));
+    }
+    free(msg->authorities);
+  }
+
+  if (msg->header.arcount != 0) {
+    for (size_t i = 0; i < msg->header.arcount; i++) {
+      dns_record_free(&(msg->additionals[i]));
+    }
+    free(msg->additionals);
+  }
+
+  msg->header.ancount = src->header.ancount;
+  if (msg->header.ancount > 0) {
+    msg->answers = malloc(msg->header.ancount * sizeof(dns_record_t));
+    for (size_t i = 0; i < msg->header.ancount; i++) {
+      dns_record_copy(&(msg->answers[i]), &(src->answers[i]));
+    }
+  } else {
+    msg->answers = NULL;
+  }
+
+  msg->header.nscount = src->header.nscount;
+  if (msg->header.nscount > 0) {
+    msg->authorities = malloc(msg->header.nscount * sizeof(dns_record_t));
+    for (size_t i = 0; i < msg->header.nscount; i++) {
+      dns_record_copy(&(msg->authorities[i]), &(src->authorities[i]));
+    }
+  } else {
+    msg->authorities = NULL;
+  }
+
+  msg->header.arcount = src->header.arcount;
+  if (msg->header.arcount > 0) {
+    msg->additionals = malloc(msg->header.arcount * sizeof(dns_record_t));
+    for (size_t i = 0; i < msg->header.arcount; i++) {
+      dns_record_copy(&(msg->additionals[i]), &(src->additionals[i]));
+    }
+  } else {
+    msg->additionals = NULL;
+  }
 }
 
-void database_load(const char* filename) {
+void database_load(database_t* db, const char* filename) {
   // load the database from the file
   LOG_DEBUG("database_load");
   FILE* fp = fopen(filename, "r");
@@ -103,22 +160,31 @@ void database_load(const char* filename) {
       record.rdata[i] = ip_addr[i];
     }
 
-    database_add(&msg);
+    database_add(db, &msg);
     // dns_record_print(&record);
   }
 
-  database_to_bst(&database);
+  database_to_bst(db);
 }
 
-db_id_t database_lookup(const dns_question_t* question) {
+void database_lookup_all(dns_message_t* msg) {
   // lookup the record in the database
   LOG_DEBUG("database_lookup");
+  db_id_t db_id = DB_INVALID_ID;
 
-  for (int i = 0; i < database.size; i++) {
-    if (question_cmp(question, &(database.msgs[i].questions[0])) == 0) {
-      return database.msgs[i].header.id;
-    }
+  db_id = database_bst_lookup(static_index, &(msg->questions[0]));
+  if (db_id != DB_INVALID_ID) {
+    LOG_DEBUG("database_lookup: found in database, id: %lld", db_id);
+    database_get_records(&database, db_id, msg);
+    return;
   }
 
-  return BST_INVALID_ID;
+  db_id = database_bst_lookup(cache_index, &(msg->questions[0]));
+  if (db_id != DB_INVALID_ID) {
+    LOG_DEBUG("database_lookup: found in cache, id: %lld", db_id);
+    database_get_records(&LRU_cache, db_id, msg);
+    list_delete_mid(db_id);
+    list_insert(db_id);
+    return;
+  }
 }

@@ -1,10 +1,6 @@
-#define _GNU_SOURCE
-
 #include "pool.h"
 
 #include <pthread.h>
-#include <sched.h>
-#include <unistd.h>
 
 pthread_mutex_t pool_id_mutex;
 uint16_t pool_id_base_index = 0;

@@ -6,7 +6,8 @@
 
 #include "database.h"
 
-bst_node_t* bst_index = NULL;  //数据库二叉树的根节点
+bst_node_t* static_index = NULL;  //数据库二叉树的根节点
+bst_node_t* cache_index = NULL;   // cache二叉树的根节点
 
 int question_cmp(const dns_question_t* q1, const dns_question_t* q2) {
   int cmp = strcmp(q1->name, q2->name);
@@ -107,17 +108,22 @@ void bst_free(bst_node_t* root) {
 
 void database_to_bst(const database_t* db) {
   for (int i = 0; i < db->size; ++i) {
-    bst_index = bst_insert(bst_index, &(db->msgs[i].questions[0]), i);
+    static_index = bst_insert(static_index, &(db->msgs[i].questions[0]), i);
   }
 }
 
-db_id_t database_lookup_helper(bst_node_t* root,
+db_id_t database_lookup_helper(const bst_node_t* root,
                                const dns_question_t* question) {
   if (root == NULL) {
-    return BST_INVALID_ID;
+    return DB_INVALID_ID;
   }
 
   int cmp = question_cmp(root->question, question);
+  // char name1[NAME_MAX_SIZE];
+  // char name2[NAME_MAX_SIZE];
+  // qname_to_name(root->question->name, name1);
+  // qname_to_name(question->name, name2);
+  // LOG_INFO("database_lookup_helper: %s, %s", name1, name2);
 
   if (cmp == 0) {
     return root->id;
@@ -129,6 +135,7 @@ db_id_t database_lookup_helper(bst_node_t* root,
 }
 
 // 数据库二叉树查找
-db_id_t database_bst_lookup(const dns_question_t* question) {
-  return database_lookup_helper(bst_index, question);
+inline db_id_t database_bst_lookup(const bst_node_t* root,
+                                   const dns_question_t* question) {
+  return database_lookup_helper(root, question);
 }

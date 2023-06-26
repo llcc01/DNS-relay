@@ -5,7 +5,6 @@
 
 #include "protocol.h"
 
-
 typedef struct {
   SOCKADDR_IN sock_in;
   dns_message_t msg;
@@ -33,6 +32,8 @@ typedef struct {
 #define DNS_UPSTREAM_LISTEN_PORT 12345
 
 extern uint16_t transaction_id_base;
+
+void msg_delete(dns_message_t* msg);
 
 void dns_handle_q(dns_handle_arg_t* arg);
 void dns_handle_r(dns_handle_arg_t* arg);

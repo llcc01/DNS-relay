@@ -4,12 +4,12 @@
 #include <signal.h>
 #include <stdio.h>
 
+#include "cache.h"
 #include "database.h"
 #include "dns.h"
 #include "pool.h"
 #include "protocol.h"
 #include "time.h"
-
 
 SOCKET s;
 SOCKET s_upstream;
@@ -80,9 +80,11 @@ int main() {
   LOG_INFO("Multi thread mode");
 #endif
 
-  database_init();
-  database_load(FILENAME);
+  database_init(&database);
 
+  database_load(&database, FILENAME);
+  linked_list_init();
+  cache_init();
   dns_transaction_id_init();
 
   protocol_init(&s, DNS_LISTEN_PORT);

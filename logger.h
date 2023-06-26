@@ -13,6 +13,8 @@ extern int log_level;
 
 #define LOG_LEVEL log_level
 
+#define IF_LOG_LEVEL(level) if (LOG_LEVEL <= level)
+
 #define LOG_DEBUG(...)                            \
   do {                                            \
     if (LOG_LEVEL <= LOG_LEVEL_DEBUG) {           \
