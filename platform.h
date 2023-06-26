@@ -23,7 +23,7 @@ typedef int64_t db_id_t;
 
 #define PANIC(msg, ...)                                                  \
   {                                                                      \
-    fprintf(stderr, msg "\n%s:%d\n", ##__VA_ARGS__, __FILE__, __LINE__); \
+    LOG_ERROR(msg "\n%s:%d\n", ##__VA_ARGS__, __FILE__, __LINE__); \
     exit(1);                                                             \
   }
 

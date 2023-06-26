@@ -103,12 +103,12 @@ void cache_put(const dns_message_t* msg) {
   head->next->idx = new_idx;
   cache_index = bst_insert(cache_index, &(msg->questions[0]), new_idx);
 
-  IF_LOG_LEVEL(LOG_LEVEL_INFO) {
-    char name[NAME_MAX_SIZE];
-    qname_to_name(msg->questions[0].name, name);
-    LOG_INFO("cache_put: %s,\tid: %d,\ttype: %d", name, new_idx,
-             msg->questions[0].type);
-  }
+  // IF_LOG_LEVEL(LOG_LEVEL_INFO) {
+  //   char name[NAME_MAX_SIZE];
+  //   qname_to_name(msg->questions[0].name, name);
+  //   LOG_INFO("cache_put: %s,\tid: %d,\ttype: %d", name, new_idx,
+  //            msg->questions[0].type);
+  // }
   pthread_mutex_unlock(&cache_mutex);
 }
 

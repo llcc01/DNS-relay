@@ -509,7 +509,8 @@ void dns_message_from_buf(const uint8_t *buf, size_t buf_len,
   }
 
   if (offset > buf_len) {
-    PANIC("Error: buffer is too short");
+    PANIC("Error: buffer is too short, offset: %zu, buf_len: %zu", offset,
+          buf_len);
   }
 
   msg->expire = msg->timestamp + ttl_min;

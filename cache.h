@@ -4,6 +4,8 @@
 #include "database.h"
 #include "protocol.h"
 
+#define CACHE_SIZE 8192
+
 
 typedef struct node_t {
   struct node_t* pre;

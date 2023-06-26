@@ -78,7 +78,7 @@ typedef struct {
 #define FLAG_RA 0x0080
 
 #define BUF_MAX_SIZE 2048
-#define NAME_MAX_SIZE 65
+#define NAME_MAX_SIZE 128
 
 #define RCODE_NO_ERROR 0
 #define RCODE_FORMAT_ERROR 1
