@@ -54,6 +54,8 @@ typedef struct {
   dns_record_t* answers;
   dns_record_t* authorities;
   dns_record_t* additionals;
+  time_t timestamp;
+  time_t expire;
 } dns_message_t;
 
 #define TYPE_A 1
@@ -82,6 +84,8 @@ typedef struct {
 #define RCODE_FORMAT_ERROR 1
 #define RCODE_SERVER_FAILURE 2
 #define RCODE_NAME_ERROR 3
+
+#define TTL_MAX 1200
 
 #define SIO_UDP_CONNRESET _WSAIOW(IOC_VENDOR, 12)
 

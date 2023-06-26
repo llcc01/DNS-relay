@@ -1,8 +1,12 @@
 #include "cache.h"
 
+#include <pthread.h>
+
 #include "database.h"
 #include "lookup.h"
 #include "platform.h"
+
+pthread_mutex_t cache_mutex;
 
 node_t* head;
 node_t* tail;
@@ -29,6 +33,7 @@ void linked_list_init() {
 void cache_init() {
   LRU_cache.msgs = malloc(9000 * sizeof(dns_message_t));  // 8192
   LRU_cache.size = 8192;
+  pthread_mutex_init(&cache_mutex, NULL);
 }
 
 void list_insert(db_id_t idx) {
@@ -72,6 +77,18 @@ int list_isempty() {
 
 void cache_put(const dns_message_t* msg) {
   uint16_t new_idx = 0;
+  pthread_mutex_lock(&cache_mutex);
+  db_id_t cache_id = database_bst_lookup(cache_index, &(msg->questions[0]));
+  if (cache_id != DB_INVALID_ID) {
+    list_delete_mid(cache_id);
+    list_insert(cache_id);
+    head->next->idx = cache_id;
+    dns_message_free(&(LRU_cache.msgs[cache_id]));
+    dns_message_copy(&(LRU_cache.msgs[cache_id]), msg);
+    pthread_mutex_unlock(&cache_mutex);
+    return;
+  }
+
   if (cache_is_full) {
     new_idx = tail->pre->idx;
     bst_delete(cache_index, &(LRU_cache.msgs[new_idx].questions[0]));
@@ -92,4 +109,13 @@ void cache_put(const dns_message_t* msg) {
     LOG_INFO("cache_put: %s,\tid: %d,\ttype: %d", name, new_idx,
              msg->questions[0].type);
   }
+  pthread_mutex_unlock(&cache_mutex);
+}
+
+inline void cache_refresh_id(db_id_t idx) {
+  pthread_mutex_lock(&cache_mutex);
+  list_delete_mid(idx);
+  list_insert(idx);
+  head->next->idx = idx;
+  pthread_mutex_unlock(&cache_mutex);
 }

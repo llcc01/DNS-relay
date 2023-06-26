@@ -56,11 +56,13 @@ void listen_upstream() {
 void monitor() {
   while (1) {
 #ifdef THREAD_POOL
-    LOG_INFO("transaction_id_base: %d,\trequest_count: %zu,\tpool_id_count: %d",
-             transaction_id_base, request_count, pool_id_count);
+    LOG_INFO(
+        "transaction_id_base: %d,\trequest_count: %zu,\tpool_id_count: "
+        "%d,\tlist_size: %d",
+        transaction_id_base, request_count, pool_id_count, list_size);
 #else
-    LOG_INFO("transaction_id_base: %d,\trequest_count: %zu",
-             transaction_id_base, request_count);
+    LOG_INFO("transaction_id_base: %d,\trequest_count: %zu,\tlist_size: %d",
+             transaction_id_base, request_count, list_size);
 #endif
     request_count = 0;
     Sleep(1000);

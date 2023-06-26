@@ -220,6 +220,14 @@ void dns_handle_r(dns_handle_arg_t* arg) {
   upstream_msg.header.id = ori_id;
   protocol_send(s, &sock_in, &upstream_msg);
 
+  // 移除无用的信息
+  for (size_t i = 0; i < upstream_msg.header.arcount; i++) {
+    dns_record_free(&(upstream_msg.additionals[i]));
+  }
+  free(upstream_msg.additionals);
+  upstream_msg.additionals = NULL;
+  upstream_msg.header.arcount = 0;
+
   cache_put(&upstream_msg);
 
   dns_message_free(&msg);

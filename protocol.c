@@ -396,6 +396,8 @@ void dns_message_from_buf(const uint8_t *buf, size_t buf_len,
                           dns_message_t *msg) {
   // convert the buffer to the message
   // printf("dns_message_from_buf\n");
+
+  msg->timestamp = time(NULL);
   dns_header_from_buf(buf, buf_len, &msg->header);
 
   // if (msg->header.qdcount ==1 && msg->header.ancount == 0 &&
@@ -451,6 +453,7 @@ void dns_message_from_buf(const uint8_t *buf, size_t buf_len,
     msg->additionals = NULL;
   }
 
+  uint32_t ttl_min = TTL_MAX;
   size_t offset = sizeof(dns_header_t);
   for (size_t i = 0; i < msg->header.qdcount; i++) {
     // printf("offset: %d, buf_len: %d\n", offset, buf_len);
@@ -475,6 +478,9 @@ void dns_message_from_buf(const uint8_t *buf, size_t buf_len,
     size_t record_len;
     dns_record_from_buf(buf, buf_len, &record_len, offset, &msg->answers[i]);
     offset += record_len;
+    if (msg->answers[i].ttl < ttl_min) {
+      ttl_min = msg->answers[i].ttl;
+    }
   }
 
   for (size_t i = 0; i < msg->header.nscount; i++) {
@@ -486,6 +492,9 @@ void dns_message_from_buf(const uint8_t *buf, size_t buf_len,
     dns_record_from_buf(buf, buf_len, &record_len, offset,
                         &msg->authorities[i]);
     offset += record_len;
+    if (msg->authorities[i].ttl < ttl_min) {
+      ttl_min = msg->authorities[i].ttl;
+    }
   }
 
   for (size_t i = 0; i < msg->header.arcount; i++) {
@@ -502,6 +511,8 @@ void dns_message_from_buf(const uint8_t *buf, size_t buf_len,
   if (offset > buf_len) {
     PANIC("Error: buffer is too short");
   }
+
+  msg->expire = msg->timestamp + ttl_min;
 }
 
 // 释放消息内容
@@ -545,6 +556,8 @@ void dns_message_free(dns_message_t *msg) {
 // 深拷贝消息
 void dns_message_copy(dns_message_t *dst, const dns_message_t *src) {
   dst->header = src->header;
+  dst->timestamp = src->timestamp;
+  dst->expire = src->expire;
 
   if (dst->header.qdcount > 0) {
     dst->questions = malloc(dst->header.qdcount * sizeof(dns_question_t));

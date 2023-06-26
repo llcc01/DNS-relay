@@ -29,5 +29,6 @@ int list_isempty();
 void cache_init();
 
 void cache_put(const dns_message_t* msg);
+void cache_refresh_id(db_id_t idx);
 
 #endif

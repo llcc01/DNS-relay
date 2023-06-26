@@ -70,6 +70,21 @@ void database_get_records(const database_t* db, db_id_t id,
   // LOG_INFO("record qdcount: %d, ancount: %d, nscount: %d, arcount: %d",
   //          src->header.qdcount, src->header.ancount, src->header.nscount,
   //          src->header.arcount);
+  msg->timestamp = src->timestamp;
+  msg->expire = src->expire;
+
+  if (msg->expire < time(NULL)) {
+    LOG_INFO("cache expired, id: %" PRId64, id);
+    msg->header.ancount = 0;
+    msg->answers = NULL;
+    msg->header.nscount = 0;
+    msg->authorities = NULL;
+    msg->header.arcount = 0;
+    msg->additionals = NULL;
+    return;
+  }
+
+  uint32_t ttl_offset = time(NULL) - src->timestamp;
 
   if (msg->header.ancount != 0) {
     for (size_t i = 0; i < msg->header.ancount; i++) {
@@ -97,6 +112,9 @@ void database_get_records(const database_t* db, db_id_t id,
     msg->answers = malloc(msg->header.ancount * sizeof(dns_record_t));
     for (size_t i = 0; i < msg->header.ancount; i++) {
       dns_record_copy(&(msg->answers[i]), &(src->answers[i]));
+      if (msg->answers[i].ttl != 0) {
+        msg->answers[i].ttl -= ttl_offset;
+      }
     }
   } else {
     msg->answers = NULL;
@@ -107,6 +125,9 @@ void database_get_records(const database_t* db, db_id_t id,
     msg->authorities = malloc(msg->header.nscount * sizeof(dns_record_t));
     for (size_t i = 0; i < msg->header.nscount; i++) {
       dns_record_copy(&(msg->authorities[i]), &(src->authorities[i]));
+      if (msg->authorities[i].ttl != 0) {
+        msg->authorities[i].ttl -= ttl_offset;
+      }
     }
   } else {
     msg->authorities = NULL;
@@ -117,6 +138,9 @@ void database_get_records(const database_t* db, db_id_t id,
     msg->additionals = malloc(msg->header.arcount * sizeof(dns_record_t));
     for (size_t i = 0; i < msg->header.arcount; i++) {
       dns_record_copy(&(msg->additionals[i]), &(src->additionals[i]));
+      if (msg->additionals[i].ttl != 0) {
+        msg->additionals[i].ttl -= ttl_offset;
+      }
     }
   } else {
     msg->additionals = NULL;
@@ -174,17 +198,17 @@ void database_lookup_all(dns_message_t* msg) {
 
   db_id = database_bst_lookup(static_index, &(msg->questions[0]));
   if (db_id != DB_INVALID_ID) {
-    LOG_DEBUG("database_lookup: found in database, id: %lld", db_id);
+    LOG_DEBUG("database_lookup: found in database, id: %" PRId64, db_id);
     database_get_records(&database, db_id, msg);
     return;
   }
 
   db_id = database_bst_lookup(cache_index, &(msg->questions[0]));
   if (db_id != DB_INVALID_ID) {
-    LOG_DEBUG("database_lookup: found in cache, id: %lld", db_id);
+    LOG_DEBUG("database_lookup: found in cache, id: %" PRId64, db_id);
     database_get_records(&LRU_cache, db_id, msg);
-    list_delete_mid(db_id);
-    list_insert(db_id);
+    cache_refresh_id(db_id);
+
     return;
   }
 }
