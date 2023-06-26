@@ -10,8 +10,8 @@
 #define LOCAL_DOMAIN "dns-relay."
 
 typedef struct {
-    dns_message_t* msgs;
-    int size;
+  dns_message_t* msgs;
+  int size;
 } database_t;
 
 extern dns_record_t local_name_rec;
@@ -19,9 +19,9 @@ extern dns_record_t local_name_rec;
 void database_init(void);
 void database_load(const char* filename);
 void database_add(const dns_message_t* msg);
-void database_get_record(bst_id_t id, dns_record_t* record);
-void database_get_msg(bst_id_t id, dns_message_t* msg);
-bst_id_t database_lookup(const dns_question_t* question);
+void database_get_record(db_id_t id, dns_record_t* record);
+void database_get_msg(db_id_t id, dns_message_t* msg);
+db_id_t database_lookup(const dns_question_t* question);
 void database_free(void);
 
 #endif

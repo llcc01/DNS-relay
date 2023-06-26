@@ -16,9 +16,8 @@
 #ifdef THREAD_POOL
 // 2^THREAD_LIMIT
 #define THREAD_LIMIT 3
-#define THREAD_NUM (1<<THREAD_LIMIT)
+#define THREAD_NUM (1 << THREAD_LIMIT)
 #endif
-
 
 extern SOCKET s;
 extern SOCKET s_upstream;

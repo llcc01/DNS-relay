@@ -1,21 +1,23 @@
 #ifndef DNS_H__
 #define DNS_H__
 
-#include "protocol.h"
 #include <time.h>
 
+#include "protocol.h"
+
+
 typedef struct {
-    SOCKADDR_IN sock_in;
-    dns_message_t msg;
-    uint16_t thread_id;
+  SOCKADDR_IN sock_in;
+  dns_message_t msg;
+  uint16_t thread_id;
 } dns_handle_arg_t;
 
 typedef struct {
-    SOCKADDR_IN sock_in;// 源地址
-    uint16_t org_id;    // 源消息的id
-    uint16_t id;        // 本消息的id
-    dns_message_t msg;  // 源消息
-    time_t start_time;  // 开始时间
+  SOCKADDR_IN sock_in;  // 源地址
+  uint16_t org_id;      // 源消息的id
+  uint16_t id;          // 本消息的id
+  dns_message_t msg;    // 源消息
+  time_t start_time;    // 开始时间
 } transaction_arg_t;
 
 #define DNS_UPSTREAM_SERVER "10.3.9.44"

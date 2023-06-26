@@ -1,8 +1,9 @@
 #ifndef POOL_H__
 #define POOL_H__
 
-#include "dns.h"
 #include <pthread.h>
+
+#include "dns.h"
 #include "platform.h"
 
 extern uint16_t pool_id_count;
