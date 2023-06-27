@@ -1,10 +1,12 @@
 #ifndef DATABASE_H__
 #define DATABASE_H__
 
+#include "main.h"
 #include "platform.h"
 #include "protocol.h"
 
-#define FILENAME "dnsrelay.txt"
+#define FILENAME static_filename
+#define FILENAME_DEFAULT "dnsrelay.txt"
 
 #define LOCAL_NAME "1.0.0.127.in-addr.arpa."
 #define LOCAL_DOMAIN "dns-relay."

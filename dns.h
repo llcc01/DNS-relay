@@ -3,6 +3,7 @@
 
 #include <time.h>
 
+#include "main.h"
 #include "protocol.h"
 
 typedef struct {
@@ -19,8 +20,8 @@ typedef struct {
   time_t start_time;    // 开始时间
 } transaction_arg_t;
 
-#define DNS_UPSTREAM_SERVER "114.114.114.114"
-#define DNS_UPSTREAM_TIMEOUT 500
+#define DNS_UPSTREAM_SERVER upstream_sever
+#define DNS_UPSTREAM_SERVER_DEFAULT "114.114.114.114"
 
 // linux 下修改端口，便于调试
 #ifdef _WIN32

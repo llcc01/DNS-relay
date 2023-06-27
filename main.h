@@ -9,6 +9,9 @@
 
 // #define MULTI_THREAD
 
+extern char *upstream_sever;
+extern char *static_filename;
+
 #ifdef MULTI_THREAD
 #define THREAD_POOL
 #endif
@@ -21,6 +24,6 @@
 
 extern SOCKET s;
 extern SOCKET s_upstream;
-extern uint8_t* handle_thread_states;
+extern uint8_t *handle_thread_states;
 
 #endif

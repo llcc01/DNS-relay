@@ -14,6 +14,8 @@
 SOCKET s;
 SOCKET s_upstream;
 size_t request_count = 0;
+char* upstream_sever;
+char* static_filename;
 
 #ifdef THREAD_POOL
 pthread_t threads[THREAD_NUM];
@@ -69,10 +71,42 @@ void monitor() {
   }
 }
 
-int main() {
+int main(int argc, char* argv[]) {
   logger_set_level(LOG_LEVEL_INFO);
 
   LOG_INFO("Hello, from DNS relay!");
+
+  if (argc == 1) {
+    LOG_INFO("No arguments, use default settings");
+  }
+
+  if (argc >= 2) {
+    LOG_INFO("Debug level: %s", argv[1]);
+    logger_set_level(atoi(argv[1]));
+  }
+
+  if (argc >= 3) {
+    LOG_INFO("Use custom upstream server: %s", argv[2]);
+    upstream_sever = argv[2];
+  } else {
+    upstream_sever = DNS_UPSTREAM_SERVER_DEFAULT;
+  }
+
+  if (argc >= 4) {
+    LOG_INFO("Use custom upstream server: %s", argv[1]);
+    LOG_INFO("Use custom static file: %s", argv[2]);
+    static_filename = argv[2];
+  } else {
+    static_filename = FILENAME_DEFAULT;
+  }
+
+  if (argc > 4) {
+    LOG_ERROR("Too many arguments");
+    return 1;
+  }
+
+  LOG_INFO("DNS_UPSTREAM_SERVER: %s", DNS_UPSTREAM_SERVER);
+  LOG_INFO("FILE_NAME: %s", FILENAME);
 
 #ifndef MULTI_THREAD
   LOG_INFO("Single thread mode");
