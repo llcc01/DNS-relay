@@ -93,9 +93,9 @@ int main(int argc, char* argv[]) {
   }
 
   if (argc >= 4) {
-    LOG_INFO("Use custom upstream server: %s", argv[1]);
-    LOG_INFO("Use custom static file: %s", argv[2]);
-    static_filename = argv[2];
+    LOG_INFO("Use custom upstream server: %s", argv[2]);
+    LOG_INFO("Use custom static file: %s", argv[3]);
+    static_filename = argv[3];
   } else {
     static_filename = FILENAME_DEFAULT;
   }
