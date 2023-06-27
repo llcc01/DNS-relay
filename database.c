@@ -37,9 +37,14 @@ void database_init(database_t* db) {
 
 void database_add(database_t* db, const dns_message_t* msg) {
   // add the record to the database
-  LOG_DEBUG("database_add %s %d.%d.%d.%d", msg->answers[0].rdata,
-            msg->answers[0].rdata[0], msg->answers[0].rdata[1],
-            msg->answers[0].rdata[2], msg->answers[0].rdata[3]);
+
+  IF_LOG_LEVEL(LOG_LEVEL_DEBUG) {
+    char name[NAME_MAX_SIZE];
+    qname_to_name(msg->questions[0].name, name);
+    LOG_DEBUG("database_add %s %d.%d.%d.%d", name, msg->answers[0].rdata[0],
+              msg->answers[0].rdata[1], msg->answers[0].rdata[2],
+              msg->answers[0].rdata[3]);
+  }
 
   db->msgs = realloc(db->msgs, (db->size + 1) * sizeof(dns_message_t));
   dns_message_copy(&(db->msgs[db->size]), msg);
